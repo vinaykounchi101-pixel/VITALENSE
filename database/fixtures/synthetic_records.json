@@ -1,0 +1,82 @@
+{
+  "description": "Deterministic synthetic test fixtures for VitalSense unit and integration tests. Contains NO real health data or PII.",
+  "user_account": {
+    "id": "a0000000-0000-4000-8000-000000000001",
+    "email": "synthetic.user@example.test",
+    "status": "active"
+  },
+  "person": {
+    "id": "b0000000-0000-4000-8000-000000000001",
+    "user_account_id": "a0000000-0000-4000-8000-000000000001",
+    "relationship_type": "self",
+    "display_name": "Synthetic Self Profile"
+  },
+  "source_records": [
+    {
+      "id": "c0000000-0000-4000-8000-000000000001",
+      "person_id": "b0000000-0000-4000-8000-000000000001",
+      "source_name": "apple_health",
+      "source_record_id": "ext-apple-step-001",
+      "idempotency_key": "apple_health:step:ext-apple-step-001",
+      "source_timestamp": "2026-10-27T08:00:00Z",
+      "ingestion_timestamp": "2026-10-27T08:05:00Z",
+      "raw_payload": {
+        "sampleType": "HKQuantityTypeIdentifierStepCount",
+        "value": 1250,
+        "unit": "count"
+      },
+      "provenance": {
+        "device": "iPhoneSimulator",
+        "app_version": "1.0.0"
+      }
+    }
+  ],
+  "health_records": [
+    {
+      "id": "d0000000-0000-4000-8000-000000000001",
+      "person_id": "b0000000-0000-4000-8000-000000000001",
+      "metric_id": "steps",
+      "value": 1250.0,
+      "unit": "count",
+      "event_timestamp": "2026-10-27T08:00:00Z",
+      "end_timestamp": "2026-10-27T09:00:00Z",
+      "source_timezone": "UTC",
+      "source_id": "c0000000-0000-4000-8000-000000000001",
+      "source_name": "apple_health",
+      "origin": "source_imported",
+      "correction_state": "active",
+      "ingestion_timestamp": "2026-10-27T08:05:00Z"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000002",
+      "person_id": "b0000000-0000-4000-8000-000000000001",
+      "metric_id": "heart_rate",
+      "value": 72.0,
+      "unit": "bpm",
+      "event_timestamp": "2026-10-27T08:15:00Z",
+      "end_timestamp": null,
+      "source_timezone": "UTC",
+      "source_id": null,
+      "source_name": "manual",
+      "origin": "user_entered",
+      "correction_state": "active",
+      "ingestion_timestamp": "2026-10-27T08:16:00Z"
+    }
+  ],
+  "audit_event": {
+    "id": "e0000000-0000-4000-8000-000000000001",
+    "actor_id": "a0000000-0000-4000-8000-000000000001",
+    "actor_type": "user",
+    "action": "auth.login",
+    "target_type": "user_account",
+    "target_id": "a0000000-0000-4000-8000-000000000001",
+    "timestamp": "2026-10-27T08:00:00Z",
+    "result": "success",
+    "ip_address": "127.0.0.1",
+    "user_agent": "Mozilla/5.0 SyntheticTestClient",
+    "metadata": {
+      "method": "email_password",
+      "client": "web"
+    }
+  }
+}

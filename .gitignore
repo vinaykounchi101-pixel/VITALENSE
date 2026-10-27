@@ -1,0 +1,175 @@
+# =============================================================================
+# VitalSense Root .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Operating System & Filesystem
+# -----------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# -----------------------------------------------------------------------------
+# Secrets, Credentials, & Environment Configuration (CRITICAL)
+# -----------------------------------------------------------------------------
+# NEVER commit real environment files or secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+*.keystore
+*.jks
+secrets/
+credentials/
+auth_tokens*
+*.token
+
+# -----------------------------------------------------------------------------
+# Health Data & Sensitive Datasets (CRITICAL)
+# -----------------------------------------------------------------------------
+# Never commit real, raw, or export health records
+data/raw/
+data/interim/
+data/processed/
+data/external/
+exports/
+reports/generated/
+*.csv.gz
+*.jsonl
+*.jsonl.gz
+
+# -----------------------------------------------------------------------------
+# Python Artifacts & Virtual Environments
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python Tooling & Caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+nosetests.xml
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# -----------------------------------------------------------------------------
+# Node.js & Web Clients
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Next.js build outputs
+.next/
+out/
+.turbo/
+.cache/
+
+# -----------------------------------------------------------------------------
+# Mobile (React Native + Expo)
+# -----------------------------------------------------------------------------
+.expo/
+.expo-shared/
+web-build/
+
+# iOS build artifacts
+ios/Pods/
+ios/build/
+ios/*.xcworkspace
+ios/*.xcodeproj/project.xcworkspace
+ios/*.xcodeproj/xcuserdata
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+
+# -----------------------------------------------------------------------------
+# Databases & Local Persistence (CRITICAL)
+# -----------------------------------------------------------------------------
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+*.sql.gz
+*.dump
+*.bak
+
+# -----------------------------------------------------------------------------
+# IDEs & Developer Tools
+# -----------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+
+# Temporary scratch directories
+scratch/
+tmp/
+temp/

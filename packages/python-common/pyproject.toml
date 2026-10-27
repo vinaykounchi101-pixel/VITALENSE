@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vitalsense-common"
+version = "0.1.0"
+description = "VitalSense shared Python domain models, database abstractions, configuration, and utilities"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "VitalSense Team" }
+]
+dependencies = [
+    "pydantic>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
