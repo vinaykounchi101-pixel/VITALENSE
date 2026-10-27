@@ -1,0 +1,206 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VitalSense API",
+    "description": "VitalSense Personal Health and Wellness Platform API. Modular monolith co-deploying Web and Mobile boundaries.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Service Liveness Probe",
+        "description": "Lightweight liveness check confirming the HTTP process is serving requests.",
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivenessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "tags": [
+          "Operations"
+        ],
+        "summary": "Service Readiness Probe",
+        "description": "Readiness check verifying backend connectivity to authoritative PostgreSQL.",
+        "operationId": "get_readiness_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadinessResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/status": {
+      "get": {
+        "tags": [
+          "Web API"
+        ],
+        "summary": "Web API Namespace Status",
+        "description": "Verify web-facing client boundary is operational.",
+        "operationId": "get_web_api_status_api_v1_web_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/status": {
+      "get": {
+        "tags": [
+          "Mobile API"
+        ],
+        "summary": "Mobile API Namespace Status",
+        "description": "Verify mobile-facing client boundary is operational.",
+        "operationId": "get_mobile_api_status_api_v1_mobile_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_Dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LivenessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "ok",
+            "examples": [
+              "ok"
+            ]
+          },
+          "service": {
+            "type": "string",
+            "title": "Service",
+            "default": "vitalsense-api",
+            "examples": [
+              "vitalsense-api"
+            ]
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "default": "0.1.0",
+            "examples": [
+              "0.1.0"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "UTC timestamp of the probe response."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "timestamp"
+        ],
+        "title": "LivenessResponse",
+        "description": "Payload for the lightweight /health liveness probe."
+      },
+      "ReadinessResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Overall readiness: 'ready' or 'degraded'."
+          },
+          "database": {
+            "type": "string",
+            "title": "Database",
+            "description": "PostgreSQL status: 'connected' or 'disconnected'."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "UTC timestamp of the probe response."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "database",
+          "timestamp"
+        ],
+        "title": "ReadinessResponse",
+        "description": "Payload for the /ready readiness probe evaluating dependency availability."
+      },
+      "SuccessResponse_Dict_str__Any__": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[Dict[str, Any]]"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+Roger That.
+
+Resume Milestone 0.3 for VitalSense. I have installed Python 3.12 and created/updated the root .env file with local PostgreSQL database credentials. Do not ask me to paste or reveal any credentials.
+
+First, archive this exact prompt as prompts/006_resume_milestone_03_verification.md. Follow AGENTS.md, VitalSense_SRS_v1.1.1_Merged.md, VitalSense_PRD_v1.1.md, the decision register, and the safeguards from prompts/005_milestone_03_environment_and_api_baseline.md. Preserve existing work. Do not commit, push, or deploy.
+
+1. Verify the current branch and working tree. Preserve the existing feature/milestone-0-3-environment-api branch and all user changes. Do not reset, clean, or overwrite files.
+2. Verify Python 3.12 is available and create/reuse the project-local .venv using that interpreter. Confirm the virtual environment's Python version. Install only the compatible, necessary project dependencies inside .venv, with reproducible version constraints. Do not install packages globally or silently switch to Python 3.14.
+3. Check that the root .env exists and is git-ignored. Read environment variables through the application's settings loader; never print, log, copy into reports, or expose the DATABASE_URL, username, password, or other secret values. If configuration is missing or invalid, report only the variable name and a redacted diagnostic. Never modify .env unless necessary and explicitly justified.
+4. Verify PostgreSQL service and connectivity using the configured application settings. Do not assume the configured database/user exists or has appropriate permissions. Use only the designated development database for migration tests. Do not connect migration tests to production, drop databases, truncate existing user data, or perform destructive resets. If connection fails, provide the error category and safe next steps without printing credentials.
+5. Review the existing Alembic migration and model metadata before running it. If safe, run Alembic upgrade against the development database, verify expected tables, foreign keys, indexes, and seed records, and test downgrade only in a separately created disposable test database with no valuable data. Do not silently rewrite an already-applied migration; propose a new migration if changes are needed.
+6. Run the FastAPI startup and HTTP endpoint tests, liveness/readiness tests, standardized error-envelope tests, and existing unit tests. Add or update focused tests only where needed. Clearly distinguish a readiness response from a database connectivity check. Never claim a test passed unless the command actually ran successfully.
+7. Generate packages/api-contracts/openapi/v1.json using the existing export script. Validate the JSON and OpenAPI version, inspect the generated diff, and ensure no credentials or environment secrets are included. Preserve existing files unless updating them is part of the approved task.
+8. Review SRS/PRD traceability and known schema risks. OD-01 metric seeds remain provisional, not product-owner-approved. Do not implement full authentication, ingestion workflows, mobile sync, encryption/key management, AI/ML, deployment, or resolve open product decisions without approval.
+9. At the end, report: files changed; Python and dependency versions; database connectivity result without secret values; migration status; tables/indexes/constraints verified; OpenAPI export/validation result; exact commands executed; test counts separated into PASSED/FAILED/BLOCKED; unresolved risks and decisions; and whether any migration changes are proposed. Do not commit, push, or deploy. Stop and wait for approval before the next milestone.
+
+Important: Treat .env contents as secrets. Never echo its contents or include credentials in terminal transcripts, generated artifacts, prompts, test output, or final reports. If any step could risk existing data, stop and ask before proceeding.
+
+Over n Out.

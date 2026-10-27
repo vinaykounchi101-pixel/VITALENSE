@@ -1,0 +1,16 @@
+Roger That.
+
+I provisionally accept Milestone 0.3 based on the supplied completion report. Proceed with Milestone 0.4 as a documentation and architecture review only. First archive this exact prompt as prompts/007_milestone_04_decision_closure.md. Follow AGENTS.md and preserve all existing work. Do not commit, push, deploy, or implement new product features.
+
+1. Inspect the current PRD v1.1, SRS v1.1.1, Open Decision Register, traceability matrix, validation report, changelog, and relevant architecture/schema files. Use the actual repository state rather than assuming the prior report is complete.
+2. Produce an evidence-based status table for OD-01 through OD-22: current wording, evidence in PRD/SRS/code, dependencies, impact if unresolved, and recommendation. Clearly separate existing approved requirements from suggestions. Do not silently close or rewrite any decision.
+3. Identify decisions that block Phase 1 architecture or implementation. At minimum examine OD-01 metrics; OD-18 authentication; OD-07 retention, deletion, export, and backup; OD-14 offline sync and deletion tombstones; supported platforms; local mobile database encryption; and hosting/deployment topology. Confirm the exact OD references and wording from the register rather than assuming these numbers cover the entire topic.
+4. Review unresolved non-functional requirements and propose measurable candidate targets for performance, availability, backup/recovery, observability, and synchronization. Label every new target PROPOSED and explain its trade-offs. Do not represent proposed targets as approved.
+5. Check PRD-to-SRS traceability, the 23 rows previously reported with placeholder verification criteria, requirement IDs, and the reported 348 requirement records. Validate against the actual files and report discrepancies. Do not fabricate trace links or claim completeness without evidence.
+6. Review the existing database schema and API contract only for risks caused by unresolved decisions. Do not alter applied migrations, database contents, OpenAPI contracts, application behavior, or production architecture in this milestone. If a schema change may be needed, describe it as a proposal with rationale and migration implications.
+7. Create a decision workshop document under docs/architecture/ that groups the required product-owner choices into a concise set of questions with recommended defaults, alternatives, consequences, and dependencies. Where a decision requires my preference, leave it OPEN and ask me instead of deciding autonomously. Update the decision register or traceability matrix only if the update records verified facts and preserves the existing status of unresolved decisions.
+8. Run appropriate documentation/traceability validation checks if available. Report exact files changed, checks executed and results, decisions requiring my approval, implementation blockers, and recommended next milestone. Do not claim tests or audits that were not executed.
+
+No feature implementation, dependency installation, database mutation, migration edits, authentication implementation, sync implementation, AI/ML, commits, pushes, or deployments are authorized. Stop after the review and wait for my approval.
+
+Over n Out.

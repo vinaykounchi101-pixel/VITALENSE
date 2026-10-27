@@ -34,8 +34,10 @@ if config.config_file_name is not None:
 # Set target metadata for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url with dynamic environment configuration
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Use dynamic environment configuration if not already overridden
+if not config.get_main_option("sqlalchemy.url") or "replace_with_secure_dev_password" in config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
 
 
 def run_migrations_offline() -> None:
@@ -66,7 +68,9 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode using async engine."""
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = settings.DATABASE_URL
+    target_url = config.get_main_option("sqlalchemy.url") or settings.DATABASE_URL
+    configuration["sqlalchemy.url"] = target_url
+
 
     connectable = async_engine_from_config(
         configuration,

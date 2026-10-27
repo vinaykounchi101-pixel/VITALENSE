@@ -1,0 +1,23 @@
+# =============================================================================
+# VitalSense Python 3.12 Pinned Dependencies (Milestone 0.3 Baseline)
+# =============================================================================
+
+# FastAPI Framework & ASGI Server
+fastapi==0.115.0
+uvicorn[standard]==0.31.1
+
+# Data Validation & Schemas
+pydantic==2.9.2
+
+# Database ORM, Migrations & Async Driver
+sqlalchemy==2.0.36
+alembic==1.13.3
+asyncpg==0.30.0
+
+# Environment Configuration
+python-dotenv==1.0.1
+
+# HTTP Client & Testing
+httpx==0.27.2
+pytest==8.3.3
+pytest-asyncio==0.24.0

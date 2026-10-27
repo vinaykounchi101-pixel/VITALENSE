@@ -9,7 +9,21 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, List
+
+try:
+    from dotenv import load_dotenv
+
+    # Find root .env safely
+    _root_env = Path(__file__).resolve().parent.parent.parent.parent.parent / ".env"
+    if _root_env.exists():
+        load_dotenv(_root_env, override=False)
+    else:
+        load_dotenv(override=False)
+except ImportError:
+    pass
+
 
 
 class ConfigurationError(ValueError):
