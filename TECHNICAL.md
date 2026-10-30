@@ -1,7 +1,7 @@
 # VitalSense — Technical Documentation & Architecture Reference
 
 **System:** VitalSense Personal Health & Wellness Platform  
-**Active Technical Specification:** [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Projects/VITALENS/docs/VitalSense_SRS_v1.1.1_Merged.md)  
+**Active Technical Specification:** [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)  
 **Architecture Style:** Modular Monolith with distinct Web and Mobile API router namespaces
 
 ---
@@ -18,15 +18,17 @@
 | **Migrations** | Alembic | `1.13.3` (asyncpg) | Database schema migrations & version tracking |
 | **Database Driver** | asyncpg | `0.30.0` | High-throughput asynchronous PostgreSQL driver |
 | **Authoritative Store**| PostgreSQL | `18` (local service) | Central authoritative server-side persistence (`DATA-004`) |
-| **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALENS/packages/api-contracts/openapi/v1.json) |
-| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite |
+| **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) |
+| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (16/16 tests passing) |
+| **Continuous Integration** | GitHub Actions | `ci.yml` (Python 3.12, least-privilege `contents: read`) | Automated testing, import verification, and OpenAPI contract drift checking |
 
 ---
 
 ## 2. Monorepo Architecture & Directory Layout
 
 ```text
-VITALENS/
+VITALSENSE/
+├── .github/                      # GitHub Actions workflows (ci.yml)
 ├── apps/                         # Frontend & mobile client applications (future workspaces)
 ├── database/                     # Database migrations, configurations, and test fixtures
 │   ├── fixtures/
@@ -37,6 +39,9 @@ VITALENS/
 ├── docs/                         # Specifications, PRD, SRS, validation reports, and decisions
 │   ├── architecture/
 │   │   └── decision_workshop.md  # Product owner decision choices
+│   ├── milestone_05_audit_and_signoff_report.md
+│   ├── milestone_05_1_baseline_recovery_and_p0_review_report.md
+│   ├── milestone_05_2_ci_verification_and_decision_gate_report.md
 │   ├── VitalSense_PRD_v1.1.md
 │   ├── VitalSense_SRS_v1.1.1_Merged.md
 │   └── VitalSense_SRS_v1.1.1_Open_Decision_Register.md
@@ -50,13 +55,13 @@ VITALENS/
 │           ├── logging.py        # Structured JSON logging & PHI redaction
 │           ├── models/           # SQLAlchemy domain models
 │           └── schemas/          # Standardized error envelopes & health schemas
-├── prompts/                      # Verbatim user prompt archive
+├── prompts/                      # Verbatim user prompt archive (001 - 010)
 ├── services/                     # Backend domain services & API entrypoints
 │   ├── api/                      # Modular monolith FastAPI application (main.py)
 │   ├── mobile_api/               # Mobile API router namespace (/api/v1/mobile)
 │   ├── web_api/                  # Web API router namespace (/api/v1/web)
 │   └── export_openapi.py         # CLI tool to export OpenAPI 3.1 JSON
-├── tests/                        # Automated test suite (test_config, test_logging, test_api_endpoints)
+├── tests/                        # Automated test suite (test_config, test_logging, test_api_endpoints, test_synthetic_fixtures)
 ├── .env.example                  # Documented environment template with placeholders
 ├── Makefile                      # Cross-platform developer convenience commands
 ├── pyproject.toml                # Python project configuration (ruff, mypy, pytest)
@@ -68,7 +73,7 @@ VITALENS/
 
 ## 3. Database Schema Baseline (Migration `001_initial_core_schema`)
 
-The schema adheres strictly to [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Projects/VITALENS/docs/VitalSense_SRS_v1.1.1_Merged.md):
+The schema adheres strictly to [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md):
 
 1. **`user_accounts`:** Identity and account credentials boundary (`id`, `email`, `status`, `created_at`, `updated_at`).
 2. **`persons`:** Profile and health data boundary (`id`, `user_account_id`, `relationship_type`, `display_name`). Separating account identity from person context allows individual data ownership and future family sharing (`ARCH-010`, `FR-AUTH-009`, `FR-FAM-001`).
@@ -88,6 +93,7 @@ The schema adheres strictly to [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Proj
 - **Operational Probes (`DEP-009`, `DEP-010`):**
   - `/health`: Liveness probe confirms process responsiveness without testing external dependencies.
   - `/ready`: Readiness probe checks database connection pool health with safe `SELECT 1` query.
+- **CI Quality Gates:** Automated pipeline executes import checks, complete test suite, and OpenAPI contract drift checking on every PR targeting `main` and `dev`.
 
 ---
 
@@ -106,6 +112,9 @@ alembic -c database/postgres/alembic.ini upgrade head
 # Export OpenAPI 3.1.0 Specification
 python services/export_openapi.py
 
+# Verify OpenAPI Schema Has No Drift
+git diff --exit-code packages/api-contracts/openapi/v1.json
+
 # Run FastAPI Development Server
 uvicorn services.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
@@ -116,6 +125,6 @@ uvicorn services.api.main:app --host 0.0.0.0 --port 8000 --reload
 
 1. Always work in `dev` branch or isolated feature branches (`feature/<name>`).
 2. Run automated tests before committing (`pytest -v`).
-3. Commit with Conventional Commits (`feat(...)`, `fix(...)`, `chore(...)`, `test(...)`).
+3. Commit with Conventional Commits (`feat(...)`, `fix(...)`, `chore(...)`, `test(...)`, `docs(...)`).
 4. Merge feature branches into `dev`, delete local feature branch, and push `dev` to `origin`.
 5. `main` is protected and updated only on approved releases.

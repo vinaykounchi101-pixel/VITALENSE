@@ -1,0 +1,45 @@
+name: CI Baseline Verification
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Backend Test Suite & Contract Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e packages/python-common --no-deps
+
+      - name: Verify package imports
+        run: |
+          python -c "import vitalsense_common; print('vitalsense_common import OK')"
+          python -c "from services.api.main import app; print('FastAPI app import OK')"
+
+      - name: Run test suite
+        run: |
+          pytest -v
+
+      - name: Verify OpenAPI contract consistency
+        run: |
+          python services/export_openapi.py
+          git diff --exit-code packages/api-contracts/openapi/v1.json
