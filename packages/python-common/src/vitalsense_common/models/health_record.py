@@ -18,6 +18,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -95,6 +96,14 @@ class SourceRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "source_name",
             "idempotency_key",
             name="uq_source_records_idempotency",
+        ),
+        Index(
+            "uq_source_records_device_id",
+            "person_id",
+            "source_name",
+            "source_record_id",
+            unique=True,
+            postgresql_where=text("source_record_id IS NOT NULL"),
         ),
     )
 

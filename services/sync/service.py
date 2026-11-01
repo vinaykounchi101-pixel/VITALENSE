@@ -19,6 +19,7 @@ from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, or_, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vitalsense_common.config import settings
@@ -271,6 +272,21 @@ class SyncService:
                     detail=f"Value {obs.value} for {obs.metric_name} exceeds valid range ({max_val}).",
                 )
 
+            # Permanent replay protection (even after 30-day tombstone pruning)
+            if obs.device_record_id:
+                existing_dev_record_query = select(SourceRecord.id).where(
+                    SourceRecord.person_id == person_id,
+                    SourceRecord.source_name == source_name,
+                    SourceRecord.source_record_id == obs.device_record_id,
+                )
+                dev_res = await session.execute(existing_dev_record_query)
+                if dev_res.scalar_one_or_none():
+                    # The record was already ingested in the past.
+                    # Whether still active or deleted via a pruned tombstone,
+                    # replay is suppressed as an idempotent duplicate.
+                    duplicate_count += 1
+                    continue
+
             # Idempotency check: prevent duplicate ingestion
             idempotency_key = obs.idempotency_key or f"auto-{uuid.uuid4()}"
             if obs.idempotency_key:
@@ -293,8 +309,24 @@ class SyncService:
                 source_timestamp=obs.measured_at,
                 raw_payload=obs.model_dump(mode="json"),
             )
-            session.add(source_record)
-            await session.flush()
+            try:
+                async with session.begin_nested():
+                    session.add(source_record)
+                    await session.flush()
+            except IntegrityError:
+                # Concurrent duplicate ingestion: unique index uq_source_records_device_id
+                # or uq_source_records_idempotency caught a simultaneous replay
+                duplicate_count += 1
+                logger.info(
+                    "Duplicate source record caught by unique constraint, suppressing replay",
+                    extra={
+                        "person_id": str(person_id),
+                        "source_name": source_name,
+                        "device_record_id": obs.device_record_id,
+                        "idempotency_key": idempotency_key,
+                    },
+                )
+                continue
 
             # Handle Immutable Record Revision (OD-04)
             if obs.correction_state == "corrected" and obs.supersedes_record_id:
