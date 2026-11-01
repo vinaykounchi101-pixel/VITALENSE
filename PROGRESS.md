@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `milestone-0.7.1.2-sync-integrity-verification`  
+**Current Branch:** `sprint-full-scope-foundation`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -229,6 +229,19 @@
   - Re-exported OpenAPI specification and verified zero contract drift.
 - [x] Archived execution prompt in [prompts/016_milestone_07_1_2_sync_integrity_verification.md](file:///e:/Projects/VITALSENSE/prompts/016_milestone_07_1_2_sync_integrity_verification.md).
 - [x] Produced final report in [docs/milestone_07_1_2_sync_integrity_verification_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_2_sync_integrity_verification_report.md).
+- [x] Published branch `milestone-0.7.1.2-sync-integrity-verification` to origin at commit `2e274318b4e0b1963e3dc40470c41ecdebf1b061`.
+
+### Milestone 0.8 — Full-Scope Implementation Sprint Kickoff & Audit (Urgent <10h Deadline)
+- [x] Switched to new sprint branch `sprint-full-scope-foundation` from base commit `2e274318b4e0b1963e3dc40470c41ecdebf1b061`.
+- [x] Verified working tree cleanliness and zero `.env` or sensitive credential leaks.
+- [x] Completed comprehensive, rapid 45-minute audit of all 16 target capabilities across Web, Android, iOS, Windows, macOS, and backend subsystems.
+- [x] Authored 5 sprint architectural and operational foundation documents:
+  - [docs/full_scope_sprint/REPOSITORY_AUDIT.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/REPOSITORY_AUDIT.md)
+  - [docs/full_scope_sprint/FEATURE_COMPLETION_MATRIX.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/FEATURE_COMPLETION_MATRIX.md)
+  - [docs/full_scope_sprint/DEPENDENCY_MAP.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/DEPENDENCY_MAP.md)
+  - [docs/full_scope_sprint/SPRINT_EXECUTION_PLAN.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/SPRINT_EXECUTION_PLAN.md)
+  - [docs/full_scope_sprint/RISKS_AND_BLOCKERS.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/RISKS_AND_BLOCKERS.md)
+- [x] Archived sprint kickoff prompt in [prompts/017_full_scope_sprint_kickoff_and_audit.md](file:///e:/Projects/VITALSENSE/prompts/017_full_scope_sprint_kickoff_and_audit.md).
 
 ---
 
@@ -236,20 +249,16 @@
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
 - **Development Branch:** `dev` (baseline at commit `505ea99`)
-- **Implementation Feature Branch:** `milestone-0.7.1.2-sync-integrity-verification` (active working tree)
+- **Published Milestone Branch:** `milestone-0.7.1.2-sync-integrity-verification` (`2e27431`)
+- **Sprint Implementation Branch:** `sprint-full-scope-foundation` (active working tree)
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---
 
-## 3. Next Milestone & Action Items
-
-### Milestone 0.8 — Background Workers & Automation Webhooks Foundation
-*Planned Next Steps:*
-1. **Background Retention Pruner Worker** (`services/workers/retention_worker.py`):
-   - Implements automated pruning of raw payloads older than 30 days (`OD-07`).
-   - Prunes expired sync tombstones older than 30 days (`OD-14`).
-2. **Internal Automation Webhook Router** (`services/internal_api/`):
-   - Worker service token authentication for n8n orchestrator webhooks (`OD-22`).
-   - Idempotent execution triggers without database direct exposure or PHI transit.
-3. **Client SDK Type Generation**:
-   - Generate TypeScript types from [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) for Web and React Native clients.
+## 3. Next Steps & Sprint Execution
+1. Implement Phase 1: Migration 005 and Python domain services for Analytics, AI Intelligence / ML Forecasting, External Health Importers, and Privacy.
+2. Verify all backend services with automated tests in `tests/`.
+3. Implement Phase 2: Web Application in `apps/web/` with interactive health dashboard, charts, manual entry, and IndexedDB sync.
+4. Implement Phase 3: Android Application in `apps/android/` with Room DB, Health Connect mapper, and Compose UI.
+5. Implement Phase 4: Multiplatform scaffoldings in `apps/ios/`, `apps/desktop-windows/`, and `apps/desktop-macos/`.
+6. Final verification and deployment packaging.

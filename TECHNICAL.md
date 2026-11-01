@@ -53,7 +53,7 @@ VITALSENSE/
 │   │   └── synthetic_records.json
 │   └── postgres/
 │       ├── alembic.ini           # Alembic migration configuration
-│       └── migrations/           # Versioned migration scripts (001, 002)
+│       └── migrations/           # Versioned migration scripts (001, 002, 003, 004)
 ├── docs/                         # Specifications, PRD, SRS, validation reports, and decisions
 │   ├── architecture/
 │   │   ├── approved_decisions_record.md # Formal ADR for approved decisions (OD-01 to OD-22)
