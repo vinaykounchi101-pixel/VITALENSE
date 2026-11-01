@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `milestone-0.7-core-auth-ingestion-sync`  
+**Current Branch:** `milestone-0.7.1-security-data-integrity`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -138,13 +138,39 @@
 - [x] Archived execution prompt in [prompts/013_milestone_07_core_authentication_ingestion_sync.md](file:///e:/Projects/VITALSENSE/prompts/013_milestone_07_core_authentication_ingestion_sync.md).
 - [x] Produced comprehensive milestone report in [docs/milestone_07_core_authentication_ingestion_sync_implementation_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_core_authentication_ingestion_sync_implementation_report.md).
 
+### Milestone 0.7.1 — Authentication, Ingestion & Synchronization Hardening Review
+- [x] **Rigorous Architectural & Security Audit Completed**:
+  - Audited all 5 core subsystems against approved PRD, SRS, ADR-001, and decisions `OD-01`, `OD-04`, `OD-07`, `OD-14`, `OD-18`, and `OD-19`.
+  - Identified and reconciled 10 concrete implementation and security gaps.
+- [x] **Web Authentication & CSRF Hardening** (`OD-18`):
+  - Restored `SameSite=Strict` and `HttpOnly=True` for access and refresh tokens.
+  - Implemented `vitalsense_csrf_token` cookie and strict double-submit CSRF verification (`verify_csrf_double_submit` dependency) for cookie-authenticated state-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`).
+  - Bearer token requests for native / programmatic clients gracefully bypass CSRF verification.
+- [x] **Concurrency & Brute-Force Hardening**:
+  - Added `.with_for_update()` row-level locking to `AuthService.refresh_session` to eliminate refresh token rotation race conditions.
+  - Implemented `InMemoryRateLimiter` sliding-window limiter on login, register, and password-reset endpoints (`SEC-002`, `SEC-008`).
+  - Implemented expiring (15-min) single-use JWT password reset foundations (`request_password_reset`, `confirm_password_reset`) with full cross-device session family revocation (`SEC-007`).
+- [x] **Ingestion & Synchronization Hardening**:
+  - Enforced `max_length=500` batch size limits on `BatchSyncRequest` (`SYNC-012`).
+  - Enforced strict metric unit validation against `canonical_unit` with clinical synonym resolution (`OD-01`, `SYNC-003`).
+  - Added timestamp sanity bounds rejecting future timestamps (>5 min) and inverted durations (`SYNC-004`).
+  - Enforced account deletion precedence blocking synchronization if account is `deleted` or `deletion_pending` (`OD-07`, `SYNC-010`).
+  - Implemented active tombstone checks preventing resurrection of deleted observations (`OD-14`, `FR-PRIV-004`).
+  - Implemented operational backend retention pruner methods (`prune_expired_raw_payloads` and `prune_expired_tombstones`) satisfying `OD-07` 30-day lifecycle requirements.
+- [x] **Comprehensive Test Suite & Zero-Drift OpenAPI Contract**:
+  - Added 10 comprehensive tests in [tests/test_hardening_security_sync.py](file:///e:/Projects/VITALSENSE/tests/test_hardening_security_sync.py).
+  - Executed full test suite: **44/44 tests PASSED** in 15.00s.
+  - Re-exported OpenAPI 3.1.0 specification to [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) and verified zero contract drift.
+- [x] Archived execution prompt in [prompts/014_milestone_07_1_security_sync_hardening.md](file:///e:/Projects/VITALSENSE/prompts/014_milestone_07_1_security_sync_hardening.md).
+- [x] Produced final audit and hardening report in [docs/milestone_07_1_security_sync_hardening_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_security_sync_hardening_report.md).
+
 ---
 
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
 - **Development Branch:** `dev` (baseline at commit `505ea99`)
-- **Implementation Feature Branch:** `milestone-0.7-core-auth-ingestion-sync` (active working tree)
+- **Implementation Feature Branch:** `milestone-0.7.1-security-data-integrity` (active working tree)
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---

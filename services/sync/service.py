@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from vitalsense_common.config import settings
 from vitalsense_common.logging import logger
+from vitalsense_common.models.account import Person, UserAccount
 from vitalsense_common.models.base import utc_now
 from vitalsense_common.models.health_record import HealthRecord, SourceRecord
 from vitalsense_common.models.metric import MetricDefinition
@@ -61,6 +62,22 @@ class SyncService:
         """Execute full batch synchronization lifecycle for an authenticated person."""
         now = utc_now()
         source_name = request.device_id[:50]
+
+        # ---------------------------------------------------------------------
+        # 0. Account Status & Deletion Precedence Check (OD-07, SYNC-010)
+        # ---------------------------------------------------------------------
+        user_query = (
+            select(UserAccount.status)
+            .join(Person, Person.user_account_id == UserAccount.id)
+            .where(Person.id == person_id)
+        )
+        user_res = await session.execute(user_query)
+        user_status = user_res.scalar_one_or_none()
+        if user_status in ("deleted", "deletion_pending"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is marked for deletion or deleted. Synchronization is disabled.",
+            )
 
         # ---------------------------------------------------------------------
         # 1. Stale Device Cursor Check (>30 days offline, OD-14)
@@ -148,6 +165,66 @@ class SyncService:
                     detail=f"Unsupported metric category: '{obs.metric_name}'.",
                 )
 
+            # Validate strict metric unit (OD-01, SYNC-003)
+            # Normalize clinically equivalent unit representations
+            unit_aliases: Dict[str, str] = {
+                "percent": "percentage",
+                "%": "percentage",
+            }
+            resolved_unit = unit_aliases.get(obs.unit, obs.unit)
+            if resolved_unit != metric_def.canonical_unit:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"Invalid unit '{obs.unit}' for metric '{obs.metric_name}'. "
+                        f"Expected canonical unit '{metric_def.canonical_unit}'."
+                    ),
+                )
+
+            # Validate timestamp bounds (cannot be more than 5 minutes in future)
+            if obs.measured_at > now + timedelta(minutes=5):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Measurement timestamp {obs.measured_at.isoformat()} cannot be in the future.",
+                )
+            if obs.end_timestamp is not None and obs.end_timestamp < obs.measured_at:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=(
+                        f"Invalid duration: end_timestamp ({obs.end_timestamp.isoformat()}) "
+                        f"precedes measured_at ({obs.measured_at.isoformat()})."
+                    ),
+                )
+
+            # Resurrection prevention (OD-14, FR-PRIV-004)
+            if obs.supersedes_record_id:
+                ts_check = select(SyncTombstone.id).where(
+                    SyncTombstone.person_id == person_id,
+                    SyncTombstone.target_record_id == obs.supersedes_record_id,
+                )
+                ts_res = await session.execute(ts_check)
+                if ts_res.scalar_one_or_none():
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"Cannot supersede or resurrect deleted record '{obs.supersedes_record_id}'.",
+                    )
+
+            if obs.device_record_id:
+                tomb_query = (
+                    select(SyncTombstone.id)
+                    .join(HealthRecord, HealthRecord.id == SyncTombstone.target_record_id)
+                    .join(SourceRecord, SourceRecord.id == HealthRecord.source_id)
+                    .where(
+                        SyncTombstone.person_id == person_id,
+                        SourceRecord.source_record_id == obs.device_record_id,
+                    )
+                )
+                tomb_res = await session.execute(tomb_query)
+                if tomb_res.scalar_one_or_none():
+                    # Suppress resurrection: skip re-inserting deleted observation
+                    duplicate_count += 1
+                    continue
+
             # Validate range bounds from metric_definition validation_rules
             rules = metric_def.validation_rules or {}
             min_val = rules.get("min_value")
@@ -208,7 +285,7 @@ class SyncService:
                     person_id=person_id,
                     metric_id=metric_def.canonical_id,
                     value=obs.value,
-                    unit=obs.unit,
+                    unit=metric_def.canonical_unit,
                     event_timestamp=target_record.event_timestamp,  # PRESERVED ORIGINAL TIMESTAMP
                     end_timestamp=obs.end_timestamp or target_record.end_timestamp,
                     source_timezone=obs.source_timezone or target_record.source_timezone,
@@ -231,7 +308,7 @@ class SyncService:
                     person_id=person_id,
                     metric_id=metric_def.canonical_id,
                     value=obs.value,
-                    unit=obs.unit,
+                    unit=metric_def.canonical_unit,
                     event_timestamp=obs.measured_at,
                     end_timestamp=obs.end_timestamp,
                     source_timezone=obs.source_timezone,
@@ -346,3 +423,46 @@ class SyncService:
             server_observations=server_observations,
             server_tombstones=server_tombstones,
         )
+
+    @staticmethod
+    async def prune_expired_raw_payloads(
+        session: AsyncSession, retention_days: int = 30
+    ) -> int:
+        """Prune raw payload contents older than retention window (OD-07).
+
+        Sets raw_payload = None while preserving source metadata for lineage.
+        """
+        cutoff = utc_now() - timedelta(days=retention_days)
+        stmt = (
+            update(SourceRecord)
+            .where(
+                SourceRecord.ingestion_timestamp < cutoff,
+                SourceRecord.raw_payload.is_not(None),
+            )
+            .values(raw_payload=None)
+        )
+        result = await session.execute(stmt)
+        await session.flush()
+        count = result.rowcount
+        logger.info(
+            "Pruned expired raw source payloads",
+            extra={"pruned_count": count, "retention_days": retention_days},
+        )
+        return count
+
+    @staticmethod
+    async def prune_expired_tombstones(
+        session: AsyncSession, retention_days: int = 30
+    ) -> int:
+        """Purge tombstones older than retention window (OD-07)."""
+        cutoff = utc_now() - timedelta(days=retention_days)
+        stmt = delete(SyncTombstone).where(SyncTombstone.deleted_at < cutoff)
+        result = await session.execute(stmt)
+        await session.flush()
+        count = result.rowcount
+        logger.info(
+            "Pruned expired sync tombstones",
+            extra={"pruned_count": count, "retention_days": retention_days},
+        )
+        return count
+

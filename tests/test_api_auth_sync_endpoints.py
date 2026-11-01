@@ -35,9 +35,11 @@ def test_web_auth_lifecycle_with_cookies() -> None:
     reg_data = reg_resp.json()
     assert "data" in reg_data
     assert "access_token" in reg_data["data"]
-    # Check cookies attached
+    # Check cookies attached (OD-18: HttpOnly access/refresh and double-submit CSRF cookie)
     assert "vitalsense_access_token" in reg_resp.cookies
     assert "vitalsense_refresh_token" in reg_resp.cookies
+    assert "vitalsense_csrf_token" in reg_resp.cookies
+    csrf_token = reg_resp.cookies["vitalsense_csrf_token"]
 
     # 2. Access protected /me using cookies
     me_resp = client.get("/api/v1/web/auth/me", cookies=reg_resp.cookies)
@@ -45,13 +47,22 @@ def test_web_auth_lifecycle_with_cookies() -> None:
     me_data = me_resp.json()["data"]
     assert me_data["email"] == email
 
-    # 3. Refresh session using cookie
-    ref_resp = client.post("/api/v1/web/auth/refresh", cookies=reg_resp.cookies)
+    # 3. Refresh session using cookie and CSRF token header
+    ref_resp = client.post(
+        "/api/v1/web/auth/refresh",
+        cookies=reg_resp.cookies,
+        headers={"X-CSRF-Token": csrf_token},
+    )
     assert ref_resp.status_code == 200
     assert "vitalsense_access_token" in ref_resp.cookies
+    new_csrf_token = ref_resp.cookies.get("vitalsense_csrf_token", csrf_token)
 
     # 4. Logout and clear cookies
-    logout_resp = client.post("/api/v1/web/auth/logout", cookies=ref_resp.cookies)
+    logout_resp = client.post(
+        "/api/v1/web/auth/logout",
+        cookies=ref_resp.cookies,
+        headers={"X-CSRF-Token": new_csrf_token},
+    )
     assert logout_resp.status_code == 200
 
 

@@ -8,6 +8,7 @@ Implements ARCH-002, ARCH-014, SEC-001 through SEC-011, and OD-18:
 
 from __future__ import annotations
 
+import secrets
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -18,6 +19,9 @@ from vitalsense_common.database import get_db_session
 from vitalsense_common.models.account import Person, UserAccount
 from vitalsense_common.schemas.auth import (
     LoginRequest,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
+    PasswordResetResponse,
     RefreshTokenRequest,
     RegisterRequest,
     RevokeSessionRequest,
@@ -26,39 +30,57 @@ from vitalsense_common.schemas.auth import (
     UserProfileResponse,
 )
 from vitalsense_common.schemas.envelope import SuccessResponse
-from services.auth.dependencies import get_current_user_and_person
+from services.auth.dependencies import (
+    get_current_user_and_person,
+    verify_csrf_double_submit,
+)
+from services.auth.rate_limiter import auth_rate_limiter
 from services.auth.service import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Web Auth"])
 
 
 def _set_auth_cookies(response: Response, tokens: TokenResponse) -> None:
-    """Helper to attach secure HttpOnly cookies for Web client."""
+    """Helper to attach secure HttpOnly cookies and CSRF double-submit cookie for Web client (OD-18)."""
     is_prod = settings.ENVIRONMENT == "production"
-    # Access token cookie (15 min)
+    # Access token cookie (15 min) - HttpOnly, SameSite=Strict
     response.set_cookie(
         key="vitalsense_access_token",
         value=tokens.access_token,
         max_age=tokens.expires_in,
         httponly=True,
         secure=is_prod,
-        samesite="lax",
+        samesite="strict",
+        path="/",
     )
-    # Refresh token cookie (7 days)
+    # Refresh token cookie (7 days) - HttpOnly, SameSite=Strict
     response.set_cookie(
         key="vitalsense_refresh_token",
         value=tokens.refresh_token,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
         httponly=True,
         secure=is_prod,
-        samesite="lax",
+        samesite="strict",
+        path="/",
+    )
+    # CSRF double-submit token - Readable by JavaScript, SameSite=Strict
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key="vitalsense_csrf_token",
+        value=csrf_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        httponly=False,
+        secure=is_prod,
+        samesite="strict",
+        path="/",
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
-    """Helper to remove auth cookies upon logout."""
-    response.delete_cookie(key="vitalsense_access_token")
-    response.delete_cookie(key="vitalsense_refresh_token")
+    """Helper to remove auth and CSRF cookies upon logout."""
+    response.delete_cookie(key="vitalsense_access_token", path="/")
+    response.delete_cookie(key="vitalsense_refresh_token", path="/")
+    response.delete_cookie(key="vitalsense_csrf_token", path="/")
 
 
 @router.post(
@@ -69,10 +91,12 @@ def _clear_auth_cookies(response: Response) -> None:
 )
 async def register(
     request: RegisterRequest,
+    raw_request: Request,
     response: Response,
     session: AsyncSession = Depends(get_db_session),
 ) -> SuccessResponse[TokenResponse]:
     """Register a new user account via Web client, issuing auth cookies and Bearer tokens."""
+    auth_rate_limiter.check(raw_request, "web_auth_register", max_requests=10, window_seconds=60)
     tokens = await AuthService.register_user(session, request)
     _set_auth_cookies(response, tokens)
     return SuccessResponse(data=tokens)
@@ -85,10 +109,12 @@ async def register(
 )
 async def login(
     request: LoginRequest,
+    raw_request: Request,
     response: Response,
     session: AsyncSession = Depends(get_db_session),
 ) -> SuccessResponse[TokenResponse]:
     """Authenticate email and password, returning tokens and setting HttpOnly cookies."""
+    auth_rate_limiter.check(raw_request, "web_auth_login", max_requests=10, window_seconds=60)
     tokens = await AuthService.authenticate_user(session, request)
     _set_auth_cookies(response, tokens)
     return SuccessResponse(data=tokens)
@@ -104,6 +130,7 @@ async def refresh(
     response: Response,
     body: Optional[RefreshTokenRequest] = None,
     session: AsyncSession = Depends(get_db_session),
+    _csrf: None = Depends(verify_csrf_double_submit),
 ) -> SuccessResponse[TokenResponse]:
     """Rotate refresh token from cookie or body, invalidating prior token and rotating cookie."""
     token_str = (body.refresh_token if body else None) or raw_request.cookies.get(
@@ -134,6 +161,7 @@ async def logout(
     response: Response,
     body: Optional[RefreshTokenRequest] = None,
     session: AsyncSession = Depends(get_db_session),
+    _csrf: None = Depends(verify_csrf_double_submit),
 ) -> SuccessResponse[str]:
     """Revoke session family and clear auth cookies."""
     token_str = (body.refresh_token if body else None) or raw_request.cookies.get(
@@ -191,6 +219,7 @@ async def revoke_session(
     payload: RevokeSessionRequest,
     user_person: Tuple[UserAccount, Person] = Depends(get_current_user_and_person),
     session: AsyncSession = Depends(get_db_session),
+    _csrf: None = Depends(verify_csrf_double_submit),
 ) -> SuccessResponse[str]:
     """Revoke a specific session family by UUID."""
     user, _ = user_person
@@ -201,4 +230,40 @@ async def revoke_session(
             detail="Session family not found or already revoked.",
         )
     return SuccessResponse(data="Session successfully revoked.")
+
+
+@router.post(
+    "/password-reset/request",
+    response_model=SuccessResponse[PasswordResetResponse],
+    summary="Request Web Password Reset",
+)
+async def request_password_reset_endpoint(
+    payload: PasswordResetRequest,
+    raw_request: Request,
+    session: AsyncSession = Depends(get_db_session),
+) -> SuccessResponse[PasswordResetResponse]:
+    """Initiate password reset process, issuing a single-use expiring token."""
+    auth_rate_limiter.check(raw_request, "web_password_reset", max_requests=5, window_seconds=60)
+    token = await AuthService.request_password_reset(session, payload.email)
+    return SuccessResponse(
+        data=PasswordResetResponse(
+            message="If an account exists with this email, a password reset token has been generated.",
+            reset_token=token if settings.ENVIRONMENT != "production" else None,
+        )
+    )
+
+
+@router.post(
+    "/password-reset/confirm",
+    response_model=SuccessResponse[str],
+    summary="Confirm Web Password Reset",
+)
+async def confirm_password_reset_endpoint(
+    payload: PasswordResetConfirmRequest,
+    session: AsyncSession = Depends(get_db_session),
+) -> SuccessResponse[str]:
+    """Reset account password using the token, revoking all active sessions."""
+    await AuthService.confirm_password_reset(session, payload.token, payload.new_password)
+    return SuccessResponse(data="Password successfully reset. All existing sessions revoked.")
+
 

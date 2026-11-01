@@ -111,3 +111,64 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except (jwt.InvalidTokenError, jwt.DecodeError) as e:
         raise TokenInvalidError("Invalid access token.") from e
 
+
+def create_password_reset_token(
+    user_account_id: Union[str, uuid.UUID],
+    expires_minutes: int = 15,
+) -> str:
+    """Create a signed, single-use, expiring HMAC-SHA256 JWT password reset token.
+
+    Args:
+        user_account_id: The UUID of the user account.
+        expires_minutes: Token validity lifetime (default: 15 minutes).
+
+    Returns:
+        Encoded JWT reset token string.
+    """
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=expires_minutes)
+
+    payload: Dict[str, Any] = {
+        "sub": str(user_account_id),
+        "purpose": "password_reset",
+        "exp": int(expire.timestamp()),
+        "iat": int(now.timestamp()),
+        "jti": str(uuid.uuid4()),
+    }
+
+    return jwt.encode(
+        payload,
+        settings.AUTH_SECRET_KEY,
+        algorithm=settings.AUTH_ALGORITHM,
+    )
+
+
+def decode_password_reset_token(token: str) -> Dict[str, Any]:
+    """Verify and decode a password reset JWT token.
+
+    Args:
+        token: Encoded JWT string.
+
+    Returns:
+        Decoded claims dictionary.
+
+    Raises:
+        TokenExpiredError: If reset token has expired.
+        TokenInvalidError: If token is malformed, has invalid signature, or wrong purpose.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.AUTH_SECRET_KEY,
+            algorithms=[settings.AUTH_ALGORITHM],
+            options={"require": ["sub", "purpose", "exp", "iat"]},
+        )
+        if payload.get("purpose") != "password_reset":
+            raise TokenInvalidError("Token is not valid for password reset.")
+        return payload
+    except jwt.ExpiredSignatureError as e:
+        raise TokenExpiredError("Password reset token has expired.") from e
+    except (jwt.InvalidTokenError, jwt.DecodeError) as e:
+        raise TokenInvalidError("Invalid password reset token.") from e
+
+

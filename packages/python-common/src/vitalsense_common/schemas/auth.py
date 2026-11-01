@@ -179,3 +179,49 @@ class UserProfileResponse(BaseModel):
     role: str = Field(..., description="Role assigned.")
     created_at: datetime = Field(..., description="Account creation timestamp.")
 
+
+class PasswordResetRequest(BaseModel):
+    """Payload to request password reset token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    email: EmailStr = Field(
+        ...,
+        description="Canonical account email address.",
+        examples=["user@example.com"],
+    )
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    """Payload to confirm password reset with token."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(
+        ...,
+        description="Expiring single-use password reset token.",
+    )
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New plaintext password meeting complexity criteria.",
+        examples=["NewSecurePassword123!"],
+    )
+
+
+class PasswordResetResponse(BaseModel):
+    """Response returned upon password reset request."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(
+        ...,
+        description="Status message regarding the password reset process.",
+    )
+    reset_token: Optional[str] = Field(
+        default=None,
+        description="In development or testing environments, the generated reset token for verification.",
+    )
+
+

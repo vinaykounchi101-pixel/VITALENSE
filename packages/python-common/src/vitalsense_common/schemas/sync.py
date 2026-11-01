@@ -175,11 +175,13 @@ class BatchSyncRequest(BaseModel):
     )
     observations: List[ObservationItem] = Field(
         default_factory=list,
-        description="Batch of health observations captured or corrected offline.",
+        max_length=500,
+        description="Batch of health observations captured or corrected offline. Maximum batch size is 500.",
     )
     tombstones: List[TombstoneItem] = Field(
         default_factory=list,
-        description="Deletions performed locally on the client to propagate upstream.",
+        max_length=500,
+        description="Deletions performed locally on the client to propagate upstream. Maximum batch size is 500.",
     )
 
 

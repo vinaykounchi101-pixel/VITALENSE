@@ -35,13 +35,16 @@ from vitalsense_common.schemas.auth import (
 from vitalsense_common.security.hasher import (
     PasswordValidationError,
     hash_password,
+    validate_password_strength,
     verify_password,
 )
 from vitalsense_common.security.tokens import (
     TokenExpiredError,
     TokenInvalidError,
     create_access_token,
+    create_password_reset_token,
     decode_access_token,
+    decode_password_reset_token,
     generate_refresh_token,
     hash_refresh_token,
 )
@@ -302,7 +305,11 @@ class AuthService:
     ) -> TokenResponse:
         """Rotate an active refresh token. Detects token reuse and immediately revokes the family."""
         token_hash = hash_refresh_token(request.refresh_token)
-        query = select(AuthRefreshToken).where(AuthRefreshToken.token_hash == token_hash)
+        query = (
+            select(AuthRefreshToken)
+            .where(AuthRefreshToken.token_hash == token_hash)
+            .with_for_update()
+        )
         res = await session.execute(query)
         token_record = res.scalar_one_or_none()
 
@@ -520,3 +527,106 @@ class AuthService:
             )
 
         return user_account, person
+
+    @staticmethod
+    async def request_password_reset(
+        session: AsyncSession, email: str
+    ) -> Optional[str]:
+        """Initiate password reset foundation (SEC-007, SEC-008).
+
+        Returns an expiring single-use reset token if user exists.
+        Always logs security audit event.
+        """
+        query = select(UserAccount).where(UserAccount.email == email.lower().strip())
+        res = await session.execute(query)
+        user_account = res.scalar_one_or_none()
+
+        if not user_account or user_account.status != "active":
+            logger.info(
+                "Password reset requested for non-existent or inactive email",
+                extra={"email": email},
+            )
+            return None
+
+        reset_token = create_password_reset_token(user_account.id, expires_minutes=15)
+
+        audit = AuditEvent(
+            actor_id=user_account.id,
+            actor_type="user",
+            action="auth.password_reset_requested",
+            target_type="user_account",
+            target_id=str(user_account.id),
+            result="success",
+            metadata_={"email": user_account.email},
+        )
+        session.add(audit)
+        await session.flush()
+
+        logger.info(
+            "Password reset token generated",
+            extra={"user_account_id": str(user_account.id)},
+        )
+        return reset_token
+
+    @staticmethod
+    async def confirm_password_reset(
+        session: AsyncSession, token: str, new_password: str
+    ) -> None:
+        """Confirm password reset using expiring token, updating Argon2id hash and revoking all user sessions."""
+        try:
+            payload = decode_password_reset_token(token)
+        except (TokenExpiredError, TokenInvalidError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            ) from e
+
+        user_id = uuid.UUID(payload["sub"])
+
+        try:
+            validate_password_strength(new_password)
+            new_hash = hash_password(new_password)
+        except PasswordValidationError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e),
+            ) from e
+
+        cred_query = select(AuthCredential).where(AuthCredential.user_account_id == user_id)
+        res = await session.execute(cred_query)
+        credential = res.scalar_one_or_none()
+        if not credential:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User credentials not found.",
+            )
+
+        credential.password_hash = new_hash
+        credential.failed_login_attempts = 0
+        credential.locked_until = None
+
+        # Revoke all active sessions and refresh tokens for this user
+        revoke_stmt = (
+            update(AuthRefreshToken)
+            .where(AuthRefreshToken.user_account_id == user_id)
+            .values(is_revoked=True)
+        )
+        await session.execute(revoke_stmt)
+
+        audit = AuditEvent(
+            actor_id=user_id,
+            actor_type="user",
+            action="auth.password_reset_completed",
+            target_type="user_account",
+            target_id=str(user_id),
+            result="success",
+            metadata_={"action": "password_reset_all_sessions_revoked"},
+        )
+        session.add(audit)
+        await session.flush()
+
+        logger.info(
+            "Password reset completed and all sessions revoked",
+            extra={"user_account_id": str(user_id)},
+        )
+

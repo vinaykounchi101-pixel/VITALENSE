@@ -20,7 +20,10 @@ from vitalsense_common.schemas.sync import (
     BatchSyncRequest,
     BatchSyncResponse,
 )
-from services.auth.dependencies import get_current_user_and_person
+from services.auth.dependencies import (
+    get_current_user_and_person,
+    verify_csrf_double_submit,
+)
 from services.sync.service import SyncService
 
 router = APIRouter(prefix="/sync", tags=["Web Sync"])
@@ -36,6 +39,7 @@ async def synchronize_web(
     request: BatchSyncRequest,
     user_person: Tuple[UserAccount, Person] = Depends(get_current_user_and_person),
     session: AsyncSession = Depends(get_db_session),
+    _csrf: None = Depends(verify_csrf_double_submit),
 ) -> SuccessResponse[BatchSyncResponse]:
     """Execute batch synchronization for the web client (IndexedDB offline cache)."""
     _, person = user_person
@@ -57,6 +61,7 @@ async def full_resync_web(
     request: BatchSyncRequest,
     user_person: Tuple[UserAccount, Person] = Depends(get_current_user_and_person),
     session: AsyncSession = Depends(get_db_session),
+    _csrf: None = Depends(verify_csrf_double_submit),
 ) -> SuccessResponse[BatchSyncResponse]:
     """Reset cursor and retrieve baseline records while preserving un-synced web drafts."""
     _, person = user_person

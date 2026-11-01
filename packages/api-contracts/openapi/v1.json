@@ -335,6 +335,92 @@
         }
       }
     },
+    "/api/v1/web/auth/password-reset/request": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Request Web Password Reset",
+        "description": "Initiate password reset process, issuing a single-use expiring token.",
+        "operationId": "request_password_reset_endpoint_api_v1_web_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PasswordResetResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Confirm Web Password Reset",
+        "description": "Reset account password using the token, revoking all active sessions.",
+        "operationId": "confirm_password_reset_endpoint_api_v1_web_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/web/sync": {
       "post": {
         "tags": [
@@ -704,6 +790,92 @@
         }
       }
     },
+    "/api/v1/mobile/auth/password-reset/request": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Request Mobile Password Reset",
+        "description": "Initiate password reset process, issuing a single-use expiring token.",
+        "operationId": "request_password_reset_endpoint_api_v1_mobile_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PasswordResetResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Confirm Mobile Password Reset",
+        "description": "Reset account password using the token, revoking all active sessions.",
+        "operationId": "confirm_password_reset_endpoint_api_v1_mobile_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/mobile/sync": {
       "post": {
         "tags": [
@@ -842,16 +1014,18 @@
               "$ref": "#/components/schemas/ObservationItem"
             },
             "type": "array",
+            "maxItems": 500,
             "title": "Observations",
-            "description": "Batch of health observations captured or corrected offline."
+            "description": "Batch of health observations captured or corrected offline. Maximum batch size is 500."
           },
           "tombstones": {
             "items": {
               "$ref": "#/components/schemas/TombstoneItem"
             },
             "type": "array",
+            "maxItems": 500,
             "title": "Tombstones",
-            "description": "Deletions performed locally on the client to propagate upstream."
+            "description": "Deletions performed locally on the client to propagate upstream. Maximum batch size is 500."
           }
         },
         "additionalProperties": false,
@@ -1298,6 +1472,81 @@
         "title": "ObservationItem",
         "description": "Client observation submission payload item for batch ingestion."
       },
+      "PasswordResetConfirmRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Expiring single-use password reset token."
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "New plaintext password meeting complexity criteria.",
+            "examples": [
+              "NewSecurePassword123!"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirmRequest",
+        "description": "Payload to confirm password reset with token."
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Canonical account email address.",
+            "examples": [
+              "user@example.com"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "description": "Payload to request password reset token."
+      },
+      "PasswordResetResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Status message regarding the password reset process."
+          },
+          "reset_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reset Token",
+            "description": "In development or testing environments, the generated reset token for verification."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "PasswordResetResponse",
+        "description": "Response returned upon password reset request."
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -1580,6 +1829,29 @@
           "data"
         ],
         "title": "SuccessResponse[List[SessionItem]]"
+      },
+      "SuccessResponse_PasswordResetResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PasswordResetResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[PasswordResetResponse]"
       },
       "SuccessResponse_TokenResponse_": {
         "properties": {

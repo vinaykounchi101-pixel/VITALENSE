@@ -116,30 +116,38 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 ## 4. Authentication & Session Architecture (OD-18)
 
 - **Argon2id Password Hashing:** 64 MiB memory (`memory_cost=65536`), 3 iterations (`time_cost=3`), 4 parallelism lanes (`parallelism=4`).
-- **Brute Force Protection:** Tracks `failed_login_attempts`. On 5 consecutive failed attempts, locks the account for 15 minutes (`locked_until`).
+- **Brute Force Protection & Lockout:** Tracks `failed_login_attempts`. On 5 consecutive failed attempts, locks the account for 15 minutes (`locked_until`).
+- **Rate Limiting (`services/auth/rate_limiter.py`):** Sliding-window rate limiting per endpoint and client IP (10 requests/minute on login/register, 5 requests/minute on password reset).
 - **Dual Client Boundaries:**
-  - **Web Client:** Sets `HttpOnly; Secure; SameSite=Lax` cookies for `vitalsense_access_token` and `vitalsense_refresh_token`.
-  - **Native / Mobile Clients:** Returns standard JSON payload containing `Bearer` access token and rotating refresh token.
-- **Rotating Refresh Token Families:** Refresh tokens rotate on every refresh. Reusing an already-consumed token triggers theft detection, immediately revoking all tokens in the entire session family (`OD-18`).
+  - **Web Client:** Sets `HttpOnly; Secure; SameSite=Strict` cookies for `vitalsense_access_token` and `vitalsense_refresh_token`. Sets client-readable `vitalsense_csrf_token` cookie (`SameSite=Strict; HttpOnly=False`) for CSRF double-submit protection.
+  - **Native / Mobile Clients:** Returns standard JSON payload containing `Bearer` access token and rotating refresh token; independent of browser cookie behavior.
+- **CSRF Double-Submit Verification (`services/auth/dependencies.py`):** State-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) with cookie authentication must submit matching `X-CSRF-Token` header. Bearer token requests bypass CSRF checks.
+- **Rotating Refresh Token Families:** Refresh tokens rotate on every refresh with PostgreSQL `.with_for_update()` row-level locking to eliminate rotation race conditions. Reusing an already-consumed token triggers theft detection, immediately revoking all tokens in the entire session family (`OD-18`).
+- **Password Reset Foundations (`SEC-007`):** Generates single-use, expiring (15-minute) signed JWT tokens. Confirming reset updates the Argon2id credential, resets lockout counters, and revokes all active session families across devices.
 
 ---
 
 ## 5. Offline Synchronization & Data Ingestion (OD-01, OD-04, OD-07, OD-14)
 
-- **Phase 1 Metric Set:** Authoritative validation restricts ingested metrics to exactly the 10 approved metrics.
+- **Phase 1 Metric Set & Strict Unit Validation:** Authoritative validation restricts ingested metrics to the 10 approved Phase 1 metrics and validates measurement units against `canonical_unit` (supporting clinical synonyms such as `%`/`percent`).
+- **Batch Size Limits:** `BatchSyncRequest` enforces `max_length=500` on observations and tombstones to mitigate denial-of-service risks.
+- **Ingestion Timestamp Bounds:** Reject measurements >5 minutes in the future or with inverted durations (`end_timestamp < measured_at`).
 - **Clinical Validation:** Paired blood pressure validation ensures systolic strictly exceeds diastolic when submitted for the same measurement timestamp.
 - **Raw Retention & Deduplication:** Raw payloads are stored in `source_records` for 30-day retention (`OD-07`). Unique constraint `uq_source_records_idempotency` ensures idempotent duplicate submissions are safely skipped.
 - **Immutable Manual Entry & Correction (`OD-04`):** Manual corrections create a new `HealthRecord` revision with `origin = "user_entered"`, `correction_state = "corrected"`, preserve the original `event_timestamp`, and update the target record's `superseded_by_id`.
-- **Deletion Tombstones (`OD-14`):** Client deletions create rows in `sync_tombstones` and remove target rows from `health_records`.
+- **Deletion Tombstones & Resurrection Prevention (`OD-14`):** Client deletions create rows in `sync_tombstones` and remove target rows from `health_records`. Observations attempting to supersede or resurrect tombstoned records are strictly rejected (HTTP 409).
+- **Account Deletion Precedence (`OD-07`, `SYNC-010`):** Synchronization verifies user account status; accounts in `deletion_pending` or `deleted` are blocked from syncing (HTTP 403).
 - **30-Day Cursor Expiry (`SYNC_CURSOR_EXPIRED`):** Reconnecting after >30 days offline triggers HTTP 409 `SYNC_CURSOR_EXPIRED`, requiring a safe full resynchronization workflow that preserves uncommitted local drafts.
+- **Operational Retention Pruning (`OD-07`):** Domain service methods `prune_expired_raw_payloads` and `prune_expired_tombstones` prune raw JSON payloads and expired tombstones older than 30 days while preserving lineage metadata.
 
 ---
 
 ## 6. Verification & Automated Quality Gates
 
-- **Test Suite:** 34 tests passing with 100% success rate:
+- **Test Suite:** **44 tests passing** with 100% success rate:
   - `test_migration_002.py`: 10 metric seeding, schema additions, constraints.
   - `test_auth_service.py`: Password validation, Argon2id, JWT, login, brute-force lockout, rotation, reuse theft detection, session listing & revocation.
+  - `test_hardening_security_sync.py`: SameSite=Strict cookies, CSRF double-submit validation, rate limiting, password reset flow, batch limits, unit validation, timestamp bounds, account deletion precedence, resurrection prevention, operational retention pruner.
   - `test_ingestion_sync.py`: Paired BP validation, idempotency deduplication, immutable correction lineage, tombstones, 30-day cursor expiration.
   - `test_api_auth_sync_endpoints.py`: Web cookie auth lifecycle, mobile Bearer token lifecycle, batch sync, and full-resync endpoints.
   - `test_api_endpoints.py`: `/health`, `/ready`, correlation ID tracing, 404 envelope format.
