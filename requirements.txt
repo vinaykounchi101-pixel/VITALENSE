@@ -8,11 +8,16 @@ uvicorn[standard]==0.31.1
 
 # Data Validation & Schemas
 pydantic==2.9.2
+email-validator==2.3.0
 
 # Database ORM, Migrations & Async Driver
 sqlalchemy==2.0.36
 alembic==1.13.3
 asyncpg==0.30.0
+
+# Cryptography, Password Hashing & JWT Security (Milestone 0.7)
+argon2-cffi==25.1.0
+pyjwt==2.15.1
 
 # Environment Configuration
 python-dotenv==1.0.1

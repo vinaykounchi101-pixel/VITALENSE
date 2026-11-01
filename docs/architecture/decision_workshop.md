@@ -1,8 +1,8 @@
-# VitalSense Architecture & Product-Owner Decision Workshop (Milestone 0.5)
+# VitalSense Architecture & Product-Owner Decision Workshop (Milestone 0.6 Consolidation)
 
-**Document Purpose:** This workshop document synthesizes all 22 open product and architectural decisions (`OD-01` through `OD-22`) from [VitalSense_SRS_v1.1.1_Open_Decision_Register.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Open_Decision_Register.md) into concrete, actionable choice sets for explicit Product Owner sign-off.
+**Document Purpose:** This workshop document records all 22 open product and architectural decisions (`OD-01` through `OD-22`) from the VitalSense specification. 
 
-**Status Convention:** Every item below is explicitly **OPEN**. Recommendations are provided as technical proposals based on architectural feasibility, security/privacy constraints, and repository foundations; they do not constitute product-owner approval.
+**Status Convention:** Decisions `OD-01`, `OD-03`, `OD-04`, `OD-07`, `OD-14`, `OD-16`, `OD-17`, `OD-18`, `OD-19`, and `OD-22` were **APPROVED by the Product Owner** in Milestone 0.5.3 and consolidated in Milestone 0.6. The remaining 12 decisions remain **OPEN** for subsequent milestone gates.
 
 ---
 
@@ -307,21 +307,21 @@
 
 ## 5. Owner Decision Sign-off Form
 
-*To be completed by the Product Owner:*
+*Formally approved by the Product Owner (Milestone 0.5.3 / Milestone 0.6):*
 
-| Decision Ref | Topic | Proposed Option | Owner Decision (Approve / Reject / Modify) | Notes / Adjustments |
+| Decision Ref | Topic | Approved Option | Owner Decision | Notes / Adjustments |
 | :--- | :--- | :--- | :--- | :--- |
-| **OD-01** | Phase 1 Metrics | Option A (5 core metrics) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-03** | Phase 0 Exit Criteria | Option A (5 verifiable criteria) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-04** | Manual Entry & Corrections | Option A (Restricted + Revision history) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-07** | Data Retention & Minimization | Option A (30-day raw payload expiry) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-14** | Sync Deletion & Tombstones | Option A (Sync tombstones table) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-16** | Platform Matrix | Option A (iOS 16+, Android 12+) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-17** | Mobile DB Encryption | Option A (SQLCipher + OS Keystore) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-18** | Authentication Architecture | Option A (Argon2id + Rotating JWT) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-19** | Service Topology | Option A (Co-deployed Modular Monolith) | [ ] APPROVED  [ ] REJECTED | |
-| **OD-22** | Automation Boundary | Option A (Strict app-worker boundary) | [ ] APPROVED  [ ] REJECTED | |
-| **NFRs** | Performance & Recovery Targets | Proposed NFR Table | [ ] APPROVED  [ ] REJECTED | |
+| **OD-01** | Phase 1 Metrics | Option B (10 metrics) | [x] APPROVED | Includes 10 metrics: steps, heart_rate, sleep_session, active_energy, workout_session, resting_heart_rate, blood_pressure_systolic, blood_pressure_diastolic, blood_oxygen_saturation, blood_glucose. Paired BP required. Weight/body measurements tracked separately. |
+| **OD-03** | Phase 0 Exit Criteria | Delegated Option | [x] APPROVED | 4-pillar verifiable acceptance criteria (Foundation, Data pipeline, Cross-platform, Release). Objective evidence required. |
+| **OD-04** | Manual Entry & Corrections | Option A (Restricted + Revisions) | [x] APPROVED | Approved metrics only; immutable revisions via `superseded_by_id`; original timestamps preserved; tombstones for deletions. |
+| **OD-07** | Data Retention & Minimization | Option A with Safeguards | [x] APPROVED | 30-day raw payload expiry (`raw_payload=NULL`); active normalized records kept; 14-day logs; 30-day account deletion grace; 30-day backup snapshot expiry with restore reconciliation. |
+| **OD-14** | Sync Deletion & Tombstones | Option A with Safeguards | [x] APPROVED | Dedicated `sync_tombstones` table; per-device sync cursors; `SYNC_CURSOR_EXPIRED` on >30d offline; never blindly wipe local DB (preserve pending offline drafts). |
+| **OD-16** | Platform Matrix | Option A Expanded | [x] APPROVED | 5 first-class platforms in parallel: Android, iOS, Windows, macOS, Web. Native health SDKs on mobile; desktop consumes synchronized data. |
+| **OD-17** | Mobile DB Encryption | Option A (Equivalent Protection) | [x] APPROVED | Encrypted local storage across all 5 platforms. SQLCipher AES-256 for SQLite; Room on Android; OS KeyStore/Keychain/DPAPI; Web Crypto on Web; key-loss recovery. |
+| **OD-18** | Authentication Architecture | Option A (Self-Hosted Identity) | [x] APPROVED | Self-hosted Argon2id + rotating JWT refresh tokens in PostgreSQL. Token family revocation on reuse; HttpOnly/Secure cookies for web; CSRF & brute-force defense. |
+| **OD-19** | Service Topology | Option A (Modular Monolith) | [x] APPROVED | Centrally deployed modular monolith with isolated `/api/v1/web` and `/api/v1/mobile` namespaces. Shared asyncpg pool; independent background workers. |
+| **OD-22** | Automation Boundary | Option A (Strict Privacy Boundary) | [x] APPROVED | Application workers own 100% writes, validation, and PHI. n8n is strictly external orchestrator via authenticated webhooks (zero direct DB access; no PHI). |
+| **NFRs** | Performance & Recovery Targets | Proposed NFR Table | [ ] OPEN | Targets remain open for production testing gate. |
 
 ---
 

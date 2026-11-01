@@ -2,7 +2,7 @@ name: CI Baseline Verification
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "milestone-*" ]
   pull_request:
     branches: [ "main", "dev" ]
 
@@ -13,6 +13,21 @@ jobs:
   test:
     name: Backend Test Suite & Contract Verification
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vitalsense_user
+          POSTGRES_PASSWORD: replace_with_secure_dev_password
+          POSTGRES_DB: vitalsense_dev
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout repository
@@ -35,7 +50,16 @@ jobs:
           python -c "import vitalsense_common; print('vitalsense_common import OK')"
           python -c "from services.api.main import app; print('FastAPI app import OK')"
 
+      - name: Run Alembic migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://vitalsense_user:replace_with_secure_dev_password@localhost:5432/vitalsense_dev
+        run: |
+          alembic upgrade head
+
       - name: Run test suite
+        env:
+          DATABASE_URL: postgresql+asyncpg://vitalsense_user:replace_with_secure_dev_password@localhost:5432/vitalsense_dev
+          ENVIRONMENT: test
         run: |
           pytest -v
 

@@ -173,6 +173,13 @@ class HealthRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         default="active",
         nullable=False,
     )
+    # Revision lineage pointing to the replacement revision (OD-04)
+    superseded_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("health_records.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     ingestion_timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -190,6 +197,11 @@ class HealthRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source_receipt: Mapped[Optional[SourceRecord]] = relationship(
         "SourceRecord",
         back_populates="health_records",
+    )
+    superseding_record: Mapped[Optional[HealthRecord]] = relationship(
+        "HealthRecord",
+        remote_side="HealthRecord.id",
+        foreign_keys=[superseded_by_id],
     )
 
     __table_args__ = (

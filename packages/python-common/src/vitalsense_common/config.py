@@ -25,7 +25,6 @@ except ImportError:
     pass
 
 
-
 class ConfigurationError(ValueError):
     """Raised when an environment configuration variable is invalid or missing."""
 
@@ -69,6 +68,13 @@ class Settings:
     AUTH_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ARGON2_MEMORY_COST: int = 65536
+    ARGON2_TIME_COST: int = 3
+    ARGON2_PARALLELISM: int = 4
+
+    # Synchronization & Data Retention (OD-07, OD-14)
+    SYNC_CURSOR_MAX_AGE_DAYS: int = 30
+    RAW_PAYLOAD_RETENTION_DAYS: int = 30
 
     # Observability
     ENABLE_STRUCTURED_LOGGING: bool = True
@@ -166,6 +172,11 @@ class Settings:
                 "ACCESS_TOKEN_EXPIRE_MINUTES", 15
             ),
             REFRESH_TOKEN_EXPIRE_DAYS=_get_int("REFRESH_TOKEN_EXPIRE_DAYS", 7),
+            ARGON2_MEMORY_COST=_get_int("ARGON2_MEMORY_COST", 65536),
+            ARGON2_TIME_COST=_get_int("ARGON2_TIME_COST", 3),
+            ARGON2_PARALLELISM=_get_int("ARGON2_PARALLELISM", 4),
+            SYNC_CURSOR_MAX_AGE_DAYS=_get_int("SYNC_CURSOR_MAX_AGE_DAYS", 30),
+            RAW_PAYLOAD_RETENTION_DAYS=_get_int("RAW_PAYLOAD_RETENTION_DAYS", 30),
             ENABLE_STRUCTURED_LOGGING=_get_bool(
                 "ENABLE_STRUCTURED_LOGGING", True
             ),

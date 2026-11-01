@@ -60,6 +60,367 @@
         }
       }
     },
+    "/api/v1/web/auth/register": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Register Web User Account",
+        "description": "Register a new user account via Web client, issuing auth cookies and Bearer tokens.",
+        "operationId": "register_api_v1_web_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/login": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Login Web User",
+        "description": "Authenticate email and password, returning tokens and setting HttpOnly cookies.",
+        "operationId": "login_api_v1_web_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/refresh": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Refresh Web Session",
+        "description": "Rotate refresh token from cookie or body, invalidating prior token and rotating cookie.",
+        "operationId": "refresh_api_v1_web_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/logout": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Logout Web User",
+        "description": "Revoke session family and clear auth cookies.",
+        "operationId": "logout_api_v1_web_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/me": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Get Current User Profile",
+        "description": "Retrieve authenticated user account and primary person profile information.",
+        "operationId": "get_me_api_v1_web_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserProfileResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/sessions": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "List Active User Sessions",
+        "description": "List all active session families across user devices.",
+        "operationId": "list_sessions_api_v1_web_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_List_SessionItem__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/sessions/revoke": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Revoke Specific Session Family",
+        "description": "Revoke a specific session family by UUID.",
+        "operationId": "revoke_session_api_v1_web_auth_sessions_revoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/sync": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Sync"
+        ],
+        "summary": "Batch Synchronize Web Client Observations",
+        "description": "Execute batch synchronization for the web client (IndexedDB offline cache).",
+        "operationId": "synchronize_web_api_v1_web_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/sync/full-resync": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Sync"
+        ],
+        "summary": "Safe Full Resynchronization for Web Client",
+        "description": "Reset cursor and retrieve baseline records while preserving un-synced web drafts.",
+        "operationId": "full_resync_web_api_v1_web_sync_full_resync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/web/status": {
       "get": {
         "tags": [
@@ -75,6 +436,353 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse_Dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/register": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Register Mobile User Account",
+        "description": "Register a new user account from a mobile/native client, returning JWT and rotating refresh token.",
+        "operationId": "register_api_v1_mobile_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/login": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Login Mobile User",
+        "description": "Authenticate mobile user and establish a persistent device session family.",
+        "operationId": "login_api_v1_mobile_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/refresh": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Refresh Mobile Session",
+        "description": "Rotate the refresh token for a mobile device. Detects token reuse and revokes compromised families.",
+        "operationId": "refresh_api_v1_mobile_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/logout": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Logout Mobile User",
+        "description": "Revoke the session family associated with the presented refresh token.",
+        "operationId": "logout_api_v1_mobile_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/me": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Get Current User Profile",
+        "description": "Retrieve authenticated user and person details.",
+        "operationId": "get_me_api_v1_mobile_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserProfileResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/sessions": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "List Active User Sessions",
+        "description": "List all registered device sessions for the authenticated user.",
+        "operationId": "list_sessions_api_v1_mobile_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_List_SessionItem__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/sessions/revoke": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Revoke Specific Session Family",
+        "description": "Revoke a specific session family across all rotated tokens.",
+        "operationId": "revoke_session_api_v1_mobile_auth_sessions_revoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/sync": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Sync"
+        ],
+        "summary": "Batch Synchronize Mobile Client Observations and Deletions",
+        "description": "Execute batch synchronization for mobile and native clients (Android, iOS, Windows, macOS).\n\nIngests new health observations, applies corrections, propagates tombstones, and returns server deltas.\nReturns HTTP 409 SYNC_CURSOR_EXPIRED if the client has been offline for >30 days.",
+        "operationId": "synchronize_mobile_api_v1_mobile_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/sync/full-resync": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Sync"
+        ],
+        "summary": "Safe Full Resynchronization Preserving Offline Drafts",
+        "description": "Execute safe full resynchronization following cursor expiration.\n\nForces last_sync_timestamp to None to retrieve canonical server baseline,\nwhile ingesting pending local offline changes and drafts.",
+        "operationId": "full_resync_mobile_api_v1_mobile_sync_full_resync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -107,6 +815,124 @@
   },
   "components": {
     "schemas": {
+      "BatchSyncRequest": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Device Id",
+            "description": "Client device identifier."
+          },
+          "last_sync_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Timestamp",
+            "description": "Latest sync timestamp acknowledged by client device. None for initial sync."
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationItem"
+            },
+            "type": "array",
+            "title": "Observations",
+            "description": "Batch of health observations captured or corrected offline."
+          },
+          "tombstones": {
+            "items": {
+              "$ref": "#/components/schemas/TombstoneItem"
+            },
+            "type": "array",
+            "title": "Tombstones",
+            "description": "Deletions performed locally on the client to propagate upstream."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "device_id"
+        ],
+        "title": "BatchSyncRequest",
+        "description": "Batch payload submitted by client devices (Android, iOS, Windows, macOS, Web)."
+      },
+      "BatchSyncResponse": {
+        "properties": {
+          "server_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Timestamp",
+            "description": "Current server UTC timestamp."
+          },
+          "processed_count": {
+            "type": "integer",
+            "title": "Processed Count",
+            "description": "Number of newly inserted or corrected observations."
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count",
+            "description": "Number of idempotent duplicate records safely skipped."
+          },
+          "tombstones_processed": {
+            "type": "integer",
+            "title": "Tombstones Processed",
+            "description": "Number of client deletions recorded."
+          },
+          "next_sync_cursor": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Sync Cursor",
+            "description": "Authoritative sync cursor timestamp to persist on the client device."
+          },
+          "server_observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationDTO"
+            },
+            "type": "array",
+            "title": "Server Observations",
+            "description": "Health observations created or modified on other devices since last_sync_timestamp."
+          },
+          "server_tombstones": {
+            "items": {
+              "$ref": "#/components/schemas/TombstoneDTO"
+            },
+            "type": "array",
+            "title": "Server Tombstones",
+            "description": "Deletions committed on the server that must be pruned from client local SQLite storage."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_timestamp",
+          "processed_count",
+          "duplicate_count",
+          "tombstones_processed",
+          "next_sync_cursor"
+        ],
+        "title": "BatchSyncResponse",
+        "description": "Synchronization outcome containing upstream deltas, tombstones, and updated cursor."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -148,6 +974,330 @@
         "title": "LivenessResponse",
         "description": "Payload for the lightweight /health liveness probe."
       },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email address.",
+            "examples": [
+              "user@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "description": "User password."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Unique client device identifier."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Human-readable device label."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Payload for user authentication."
+      },
+      "ObservationDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At"
+          },
+          "end_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Timestamp"
+          },
+          "source_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Timezone"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          },
+          "correction_state": {
+            "type": "string",
+            "title": "Correction State"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "person_id",
+          "metric_name",
+          "value",
+          "unit",
+          "measured_at",
+          "origin",
+          "correction_state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ObservationDTO",
+        "description": "Server-side health observation record dispatched to client devices."
+      },
+      "ObservationItem": {
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name",
+            "description": "Metric category identifier. Must be one of the approved Phase 1 metrics.",
+            "examples": [
+              "steps",
+              "heart_rate",
+              "blood_pressure_systolic"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Numeric measurement value."
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Measurement unit corresponding to the metric definition.",
+            "examples": [
+              "count",
+              "bpm",
+              "mmHg",
+              "mg/dL",
+              "percent",
+              "kcal"
+            ]
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At",
+            "description": "Authoritative UTC timestamp when the measurement took place. Preserved during corrections."
+          },
+          "end_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Timestamp",
+            "description": "End UTC timestamp for duration metrics (e.g. workout_session, sleep_session)."
+          },
+          "source_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Timezone",
+            "description": "Timezone string where the measurement was recorded (e.g. 'America/New_York').",
+            "default": "UTC"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "device_sync",
+              "user_entered",
+              "calculated",
+              "imported"
+            ],
+            "title": "Origin",
+            "description": "Provenance of the observation. Controlled manual entries must use 'user_entered'.",
+            "default": "device_sync"
+          },
+          "correction_state": {
+            "type": "string",
+            "enum": [
+              "original",
+              "corrected",
+              "superseded"
+            ],
+            "title": "Correction State",
+            "description": "Revision state of the observation.",
+            "default": "original"
+          },
+          "supersedes_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Record Id",
+            "description": "If correcting an existing record, the UUID of the record being superseded."
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id",
+            "description": "Client device's local record UUID or primary key."
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key",
+            "description": "Unique idempotency key ensuring deduplication across repeated sync attempts."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Extensible metadata payload (e.g. workout type, sleep stage breakdown)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "metric_name",
+          "value",
+          "unit",
+          "measured_at"
+        ],
+        "title": "ObservationItem",
+        "description": "Client observation submission payload item for batch ingestion."
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -177,6 +1327,209 @@
         "title": "ReadinessResponse",
         "description": "Payload for the /ready readiness probe evaluating dependency availability."
       },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Plaintext refresh token received from previous login/refresh."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Client device identifier requesting rotation."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest",
+        "description": "Payload for rotating refresh token exchange."
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email address (canonical identity).",
+            "examples": [
+              "user@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "description": "Plaintext password meeting complexity criteria (minimum 8 characters).",
+            "examples": [
+              "CorrectHorseBatteryStaple123!"
+            ]
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Optional user display name.",
+            "examples": [
+              "Alice"
+            ]
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Unique device identifier registering the account."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Human-readable device name (e.g. 'Pixel 8', 'MacBook Pro')."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "description": "Payload for user account registration."
+      },
+      "RevokeSessionRequest": {
+        "properties": {
+          "family_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Family Id",
+            "description": "Session family UUID to revoke across all rotated tokens."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family_id"
+        ],
+        "title": "RevokeSessionRequest",
+        "description": "Payload to revoke a specific session family."
+      },
+      "SessionItem": {
+        "properties": {
+          "family_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Family Id",
+            "description": "Unique session family identifier."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Device identifier."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Device label."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp when the session family was established."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At",
+            "description": "Expiration timestamp of the latest active refresh token in the family."
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether the session family contains valid, unrevoked tokens."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family_id",
+          "created_at",
+          "expires_at",
+          "is_active"
+        ],
+        "title": "SessionItem",
+        "description": "Representation of an active or historical device session family."
+      },
+      "SuccessResponse_BatchSyncResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BatchSyncResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[BatchSyncResponse]"
+      },
       "SuccessResponse_Dict_str__Any__": {
         "properties": {
           "data": {
@@ -200,6 +1553,302 @@
           "data"
         ],
         "title": "SuccessResponse[Dict[str, Any]]"
+      },
+      "SuccessResponse_List_SessionItem__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SessionItem"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[List[SessionItem]]"
+      },
+      "SuccessResponse_TokenResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TokenResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TokenResponse]"
+      },
+      "SuccessResponse_UserProfileResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserProfileResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[UserProfileResponse]"
+      },
+      "SuccessResponse_str_": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[str]"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "Signed HMAC-SHA256 JWT access token (15-minute expiration)."
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Rotating cryptographically secure 32-byte URL-safe refresh token."
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "Token type header prefix.",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token lifetime in seconds (e.g. 900 for 15 minutes)."
+          },
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "Primary user account UUID."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Associated canonical person UUID."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "user_account_id",
+          "person_id"
+        ],
+        "title": "TokenResponse",
+        "description": "Payload returned upon successful authentication or token refresh."
+      },
+      "TombstoneDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "target_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Record Id"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_record_id",
+          "record_type",
+          "deleted_at"
+        ],
+        "title": "TombstoneDTO",
+        "description": "Server-side tombstone dispatched to clients to purge local cache."
+      },
+      "TombstoneItem": {
+        "properties": {
+          "target_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Record Id",
+            "description": "UUID of the health record being deleted."
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "Type of record deleted.",
+            "default": "health_record"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At",
+            "description": "UTC timestamp of the deletion action."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_record_id",
+          "deleted_at"
+        ],
+        "title": "TombstoneItem",
+        "description": "Client-submitted deletion tombstone to propagate to canonical server."
+      },
+      "UserProfileResponse": {
+        "properties": {
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "User account UUID."
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Person profile UUID."
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Display name."
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Role assigned."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Account creation timestamp."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_account_id",
+          "email",
+          "person_id",
+          "role",
+          "created_at"
+        ],
+        "title": "UserProfileResponse",
+        "description": "User profile response returning account and person metadata."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

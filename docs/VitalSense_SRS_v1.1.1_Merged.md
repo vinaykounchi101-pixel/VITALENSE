@@ -327,8 +327,7 @@ enabled, must be validated and labeled experimental.
 
 The long-term candidate set includes steps/movement, heart rate, sleep,
 workouts, calories, SpO₂, blood pressure, weight/body measurements and
-other supported metrics. The exact Phase 1 list is **OPEN (OD-01)** and
-must be frozen after platform feasibility review.
+other supported metrics. The exact Phase 1 list is **RESOLVED (OD-01, Approved Option B)**: includes 10 metrics (`steps`, `heart_rate`, `sleep_session`, `active_energy`, `workout_session`, `resting_heart_rate`, `blood_pressure_systolic`, `blood_pressure_diastolic`, `blood_oxygen_saturation` [SpO2], and `blood_glucose`). Blood pressure requires paired systolic/diastolic measurements. Weight/body measurements remain separately tracked for future phases. Honest empty states are mandatory when devices are absent.
 
   -----------------------------------------------------------------------
   Category                            Source rule and required behavior
@@ -429,7 +428,7 @@ must be frozen after platform feasibility review.
 
 ## 3.7 Manual entry
 
-Exact Phase 1 categories are **OPEN (OD-04)**.
+Phase 1 manual entry is **RESOLVED (OD-04, Approved Option A)**: Controlled manual entry permitted strictly for the 10 approved Phase 1 metrics (`origin='user_entered'`). In-place overwrites are prohibited; edits create immutable revisions pointing to prior records via `superseded_by_id`, preserving original measurement timestamps. Deletions generate tombstones.
 
 -   **FR-MAN-001 (P0, when included):** Manual entry must capture
     approved value, unit, event time and required context.
@@ -739,7 +738,7 @@ No capability shall be represented as supported until its pathway has been demon
 - **IF-API-014:** Every retriable write shall define idempotency-key scope/lifetime or equivalent duplicate prevention, including behavior when a key is reused with a different payload.
 - **IF-API-015:** Concurrent update behavior shall be documented for mutable entities, including whether stale updates are rejected, merged, or explicitly resolved by the client.
 - **IF-API-016:** API compatibility and deprecation rules shall be documented before a client contract is relied upon by a released web/mobile application.
-- **IF-API-017:** Authentication/session design shall specify credential/token type, storage location, expiry, refresh/rotation, revocation, sign-out invalidation, recovery, and applicable CSRF protections. The exact mechanism remains OPEN under OD-18 until approved.
+- **IF-API-017:** Authentication/session design is **RESOLVED (OD-18, Approved Option A)**: Self-hosted identity with Argon2id password hashing, 15-minute stateless JWT access tokens, 7-day rotating refresh tokens stored hashed in PostgreSQL table `auth_refresh_tokens`, token-family reuse detection with immediate revocation, `HttpOnly; Secure; SameSite=Strict` cookies with CSRF tokens on Web, and platform secure storage on native clients.
 - **IF-API-018:** Authorization tests shall cover direct-object-reference changes, cross-account access, background jobs, exports, and both client-facing API boundaries.
 
 ## 4.6 Asynchronous event and workflow delivery
@@ -910,7 +909,7 @@ The following requirements supplement SYNC-001 through SYNC-014. They add testab
 - **DATA-013:** Deletion requirements shall distinguish immediate user-access revocation, deletion from active stores, derived-output invalidation, local-device cleanup, third-party deletion requests, and eventual backup expiry. The product shall not claim immediate or complete erasure unless evidence supports that claim.
 - **DATA-014:** Sign-out, account switching, source disconnection, and account deletion shall each have distinct documented effects on local cached data and pending offline operations.
 - **DATA-015:** If an operation cannot be completed synchronously, the system shall expose truthful status, failure/retry path, and completion criterion. Status shall distinguish requested, in progress, completed, failed, and partially completed where applicable.
-- **DATA-016:** Retention periods, backup expiry, export format, and deletion exceptions remain OPEN under OD-07/OD-14. This SRS does not invent values.
+- **DATA-016:** Retention periods, backup expiry, export format, and deletion exceptions are **RESOLVED (OD-07 & OD-14, Approved Option A with Safeguards)**: 30-day raw payload retention (`raw_payload = NULL` after 30 days while preserving receipt metadata), normalized records retained while account is active, 14-day server log retention with 100% PHI redaction, 30-day account deletion grace period, 30-day backup snapshot expiry with restore reconciliation against `audit_events`, dedicated `sync_tombstones`, per-device cursors, and `SYNC_CURSOR_EXPIRED` protection preserving uncommitted drafts.
 
 
 
@@ -1096,9 +1095,9 @@ Repository rules:
 
 The repository tree in Section 6.4 is a logical organization, not a commitment to deploy each folder as a separate service.
 
-- **ARCH-013:** Before Phase 1 deployment design is frozen, an ADR shall identify which components are co-deployed, separately deployed, or run as scheduled/background workers; the decision shall include operational cost, security boundaries, failure isolation, deployment complexity, and test implications.
+- **ARCH-013:** Service topology is **RESOLVED (OD-19, Approved Option A)**: Co-deployed modular monolith container initially hosting `/api/v1/web` and `/api/v1/mobile` with shared PostgreSQL connection pool, independent background workers, and modular boundaries enabling future extraction.
 - **ARCH-014:** Web-facing and mobile-facing APIs may share a deployment and domain implementation, but shall retain documented client-facing contracts and authorization behavior.
-- **ARCH-015:** n8n is an orchestrator, not the authority for canonical data validation, authorization, or business policy. OD-22 shall define which jobs belong in n8n versus application-owned workers before production automation is enabled.
+- **ARCH-015:** Automation boundary is **RESOLVED (OD-22, Approved Option A)**: Backend application workers own 100% of canonical writes, validation, and PHI. n8n is strictly an external workflow orchestrator via authenticated webhooks (zero direct PostgreSQL access; zero PHI).
 - **ARCH-016:** The system shall document event/outbox persistence and delivery semantics if reliable asynchronous delivery is required. If no durable outbox is selected, the design shall document accepted loss/duplication risk and recovery approach.
 
 
@@ -1567,91 +1566,53 @@ product direction; engineering supplies feasibility evidence; QA
 supplies acceptance/test evidence; relevant privacy/clinical reviewers
 advise on future phases.
 
-  ---------------------------------------------------------------------------------------------
-  ID                Decision                 Owner/contributors            Resolve by
-  ----------------- ------------------------ ----------------------------- --------------------
-  OD-01             Exact Phase 1 metric     Product owner + platform      Before Phase 1 scope
-                    categories and source    engineering                   freeze
-                    integrations                                           
+  ------------------------------------------------------------------------------------------------------------------------
+  ID                Decision / Topic         Status & Approved Details                     Owner/contributors     Resolve by
+  ----------------- ------------------------ --------------------------------------------- ---------------------- ----------------------
+  OD-01             Phase 1 metric scope     APPROVED (Option B: 10 metrics + paired BP)   Product owner          Milestone 0.6 (Done)
 
-  OD-02             Priority trade-offs if   Product owner, usability      Phase 0
-                    all candidate metrics    evidence where feasible       
-                    cannot fit                                             
+  OD-02             Priority trade-offs      OPEN (Honest empty states enforced)           Product owner, QA      Phase 1 scope freeze
 
-  OD-03             Acceptance criteria for  Product owner + engineering   Before Phase 0
-                    first deployable                                       acceptance
-                    milestone                                              
+  OD-03             Phase 0 exit criteria    APPROVED (4-pillar verifiable gate)           Product owner + arch   Milestone 0.6 (Done)
 
-  OD-04             Exact manual-entry       Product owner +               Before Phase 1 scope
-                    categories/correction    design/engineering            freeze
-                    behavior                                               
+  OD-04             Manual entry behavior    APPROVED (Option A: Immutable revisions)      Product owner + eng    Milestone 0.6 (Done)
 
-  OD-05             Phase 2 assistant UX,    Product owner +               Before Phase 2 scope
-                    supported question      AI/privacy/cost input         freeze
-                    types, proactive         
-                    insight triggers and                                   
-                    usage limits                                            
+  OD-05             Phase 2 assistant UX     OPEN (Gated to Phase 2)                       Product owner + AI     Before Phase 2 scope
 
-  OD-06             Medical document formats Product owner + engineering + Before Phase 4
-                    and extraction approach  future reviewers              implementation
+  OD-06             Medical document formats OPEN (Gated to Phase 4)                       Product owner + med    Before Phase 4
 
-  OD-07             Retention, export,       Product owner +               Before
-                    deletion, derived        engineering/privacy/legal as  promising/shipping
-                    outputs, caches and      applicable                    those controls
-                    backups                                                
+  OD-07             Data retention/deletion  APPROVED (Option A: 30d raw payload expiry)   Product owner + sec    Milestone 0.6 (Done)
 
-  OD-08             Final name and brand     Product owner                 Before public
-                    availability                                           branding
+  OD-08             Final brand & name       OPEN (Provisional VitalSense retained)        Product owner          Before public branding
 
-  OD-09             Monetization/long-term   Product owner                 Before pricing/cost
-                    cost model                                             commitments
+  OD-09             Monetization cost model  OPEN (Free-tier-first constraint)             Product owner          Before commercial cost
 
-  OD-10             Success measures and     Product owner + analytics/QA  Definitions before
-                    numeric targets                                        instrumentation;
-                                                                           targets after
-                                                                           baseline
+  OD-10             Success & NFR targets    OPEN (Candidate ranges drafted)               Product owner + QA     Before production
 
-  OD-11             Forecast readiness       Product owner + ML/QA         Before each Phase 3
-                    thresholds per use case                                release
+  OD-11             Forecast thresholds      OPEN (Gated to Phase 3)                       Product owner + ML     Before Phase 3 release
 
-  OD-12             Medical intended use,    Product owner + appropriate   Before Phase 4
-                    validation and approval  clinical/privacy/regulatory   release
-                    roles                    expertise                     
+  OD-12             Medical intended use     OPEN (General wellness scope Phases 0-3)      Product owner + med    Before Phase 4 release
 
-  OD-13             Family roles, minors,    Product owner + privacy/legal Before Phase 5
-                    consent and revocation   as applicable                 release
+  OD-13             Family authorization     OPEN (Gated to Phase 5)                       Product owner + legal  Before Phase 5 release
 
-  OD-14             Export formats/sharing   Product owner +               Before relevant
-                    pathways                 design/engineering            feature scope
+  OD-14             Sync tombstones & delete APPROVED (Option A: Tombstones + cursors)     Product owner + eng    Milestone 0.6 (Done)
 
-  OD-15             Whether users need a     Product owner + usability     Before adding as
-                    workflow history view    evidence                      committed scope
+  OD-15             Workflow history view    OPEN (Status screen for export/deletion)      Product owner + UX     Before Phase 1 privacy
 
-  OD-16             Minimum supported        Engineering + product owner   Before Phase 1
-                    OS/browser versions                                    compatibility
-                                                                           testing
+  OD-16             Supported platforms      APPROVED (5 first-class platforms in parallel)Product owner + eng    Milestone 0.6 (Done)
 
-  OD-17             Local DB/encryption/key  Mobile engineering/security   Before persisting
-                    management                                             sensitive offline
-                                                                           data
+  OD-17             Local DB encryption      APPROVED (Option A: SQLCipher + OS Keystore)  Mobile sec + product   Milestone 0.6 (Done)
 
-  OD-18             Auth/session             Backend/security              Before auth
-                    implementation                                         implementation is
-                                                                           accepted
+  OD-18             Auth & session lifecycle APPROVED (Option A: Self-hosted Argon2id/JWT) Backend + security    Milestone 0.6 (Done)
 
-  OD-19             Hosting and              Engineering + product owner   Before deployment
-                    separate/co-deployed                                   design freeze
-                    service choices                                        
+  OD-19             Service hosting topology APPROVED (Option A: Modular Monolith)         Engineering + product  Milestone 0.6 (Done)
 
-  OD-20             Backup RPO/RTO           Product owner + engineering   Before production
+  OD-20             Backup RPO/RTO           OPEN (Target: RPO <= 24h, RTO <= 4h)          Engineering + product  Before production
 
-  OD-21             AI provider, retention   Product owner + AI/privacy    Before production
-                    terms and cost limits                                  health data goes to
-                                                                           provider
+  OD-21             AI provider terms        OPEN (Gated to Phase 2)                       Product owner + AI/sec Before Phase 2 provider
 
-  OD-22             n8n vs                   Backend/operations            Before production
-                    application-worker split engineering                   automation
-  ---------------------------------------------------------------------------------------------
+  OD-22             n8n automation boundary  APPROVED (Option A: App workers own PHI/DB)   Backend + ops + sec    Milestone 0.6 (Done)
+  ------------------------------------------------------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
 

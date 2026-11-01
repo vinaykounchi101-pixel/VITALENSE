@@ -9,9 +9,16 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from fastapi import APIRouter
+
 from vitalsense_common.schemas.envelope import SuccessResponse
+from services.web_api.auth import router as auth_router
+from services.web_api.sync import router as sync_router
 
 router = APIRouter(prefix="/api/v1/web", tags=["Web API"])
+
+# Mount sub-routers
+router.include_router(auth_router)
+router.include_router(sync_router)
 
 
 @router.get(
