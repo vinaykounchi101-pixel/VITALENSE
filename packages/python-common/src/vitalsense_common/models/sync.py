@@ -55,6 +55,11 @@ class SyncTombstone(Base, UUIDPrimaryKeyMixin):
         String(100),
         nullable=True,
     )
+    device_record_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
     deleted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -72,6 +77,11 @@ class SyncTombstone(Base, UUIDPrimaryKeyMixin):
             "ix_sync_tombstones_person_deleted",
             "person_id",
             "deleted_at",
+        ),
+        Index(
+            "ix_sync_tombstones_device_record_id",
+            "person_id",
+            "device_record_id",
         ),
     )
 

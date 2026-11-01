@@ -25,7 +25,7 @@
 | **Password Hashing** | Argon2id (`argon2-cffi`) | `25.1.0` (m=65536, t=3, p=4) | High-cost GPU/ASIC-resistant password security (`OD-18`) |
 | **Token Lifecycle** | PyJWT | `2.15.1` (HS256) | 15-minute access tokens + 32-byte rotating refresh tokens |
 | **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) |
-| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (52/52 tests passing) |
+| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (60/60 tests passing) |
 | **Continuous Integration** | GitHub Actions | `ci.yml` (Python 3.12, PostgreSQL 16 service, least-privilege `contents: read`) | Automated testing, migration verification, and OpenAPI contract drift checking |
 
 ---
@@ -113,6 +113,9 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 - **`003_auth_password_resets`**:
   - Added `auth_password_resets` table (`id`, `user_account_id`, `token_hash`, `expires_at`, `is_consumed`, `consumed_at`, `is_revoked`, `created_at`) (`SEC-007`).
   - Indexed `token_hash` and `user_account_id` for O(1) single-use lookup and atomic invalidation.
+- **`004_tombstone_device_id`**:
+  - Added `device_record_id` column to table `sync_tombstones` (`OD-14`, `FR-PRIV-004`).
+  - Added composite index on `(person_id, device_record_id)` enabling O(1) resurrection checks without joining deleted `health_records`.
 
 ---
 
@@ -141,16 +144,17 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 - **Clinical Validation:** Paired blood pressure validation ensures systolic strictly exceeds diastolic when submitted for the same measurement timestamp.
 - **Raw Retention & Deduplication:** Raw payloads are stored in `source_records` for 30-day retention (`OD-07`). Unique constraint `uq_source_records_idempotency` ensures idempotent duplicate submissions are safely skipped.
 - **Immutable Manual Entry & Correction (`OD-04`):** Manual corrections create a new `HealthRecord` revision with `origin = "user_entered"`, `correction_state = "corrected"`, preserve the original `event_timestamp`, and update the target record's `superseded_by_id`.
-- **Deletion Tombstones & Resurrection Prevention (`OD-14`):** Client deletions create rows in `sync_tombstones` and remove target rows from `health_records`. Observations attempting to supersede or resurrect tombstoned records are strictly rejected (HTTP 409).
+- **Deletion Tombstones & Decoupled Resurrection Prevention (`OD-14`):** Client deletions create rows in `sync_tombstones` and remove target rows from `health_records`. Before deleting `HealthRecord`, the service resolves the original `SourceRecord.source_record_id` and records it directly on the tombstone (`device_record_id`). Incoming observations check `SyncTombstone` directly via indexed lookup without joining deleted `HealthRecord` rows. Observations attempting to supersede or resurrect deleted records are strictly rejected (HTTP 409) or suppressed. In-batch ordering ensures deletions execute before observations, so deletion always wins.
 - **Account Deletion Precedence (`OD-07`, `SYNC-010`):** Synchronization verifies user account status; accounts in `deletion_pending` or `deleted` are blocked from syncing (HTTP 403).
-- **30-Day Cursor Expiry & Full Resync (`SYNC_CURSOR_EXPIRED`):** Reconnecting after >30 days offline triggers HTTP 409 `SYNC_CURSOR_EXPIRED`. Client recovers via full resync (`last_sync_timestamp = None`), purging local cache of records missing from the server's active baseline while preserving and ingesting un-synced offline drafts.
-- **Operational Retention Pruning Worker (`services/workers/retention_worker.py`):** Dedicated CLI and background runner executes `prune_expired_raw_payloads` and `prune_expired_tombstones` on a documented schedule (`settings.RETENTION_RUN_INTERVAL_HOURS`), emitting structured JSON audit logs and ensuring atomic transaction boundaries.
+- **30-Day Cursor Expiry & Full Resync (`SYNC_CURSOR_EXPIRED`):** Reconnecting after >30 days offline triggers HTTP 409 `SYNC_CURSOR_EXPIRED`. Client recovers via full resync (`last_sync_timestamp = None`), receiving the active server baseline (excluding deleted records) and empty tombstones. The client algorithm purges locally cached records absent from the active baseline while preserving and uploading pending un-synced offline drafts (`pending_upload`).
+- **Operational Retention Pruning Worker (`services/workers/retention_worker.py`):** Dedicated CLI and background runner executes `prune_expired_raw_payloads` and `prune_expired_tombstones` on a documented schedule (`settings.RETENTION_RUN_INTERVAL_HOURS`), emitting structured JSON audit logs and ensuring atomic transaction boundaries. In multi-worker production deployments, running as a decoupled single-runner cron job is strongly recommended to eliminate duplicate execution across API processes.
 
 ---
 
 ## 6. Verification & Automated Quality Gates
 
-- **Test Suite:** **52 tests passing** with 100% success rate:
+- **Test Suite:** **60 tests passing** with 100% success rate:
+  - `test_sync_integrity.py`: Decoupled tombstone resurrection prevention without joining deleted rows, device_record_id suppression, supersedes_record_id 409 rejection, tenant/person isolation, duplicate tombstone idempotency, in-batch deletion precedence, full-resync backend contract and draft preservation, account deletion override, concurrent password reset confirmation via `asyncio.gather`.
   - `test_corrections_auth_retention.py`: Database-backed single-use password reset lifecycle, replay rejection, multi-token revocation, WebAuthResponse token omission, rate limiter anti-spoofing and memory bounding, operational retention worker runner, stale device full-resync reconciliation.
   - `test_migration_002.py`: 10 metric seeding, schema additions, constraints.
   - `test_auth_service.py`: Password validation, Argon2id, JWT, login, brute-force lockout, rotation, reuse theft detection, session listing & revocation.

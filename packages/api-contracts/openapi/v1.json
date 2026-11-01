@@ -2014,6 +2014,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Deleted At"
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id"
           }
         },
         "additionalProperties": false,
@@ -2046,6 +2057,19 @@
             "format": "date-time",
             "title": "Deleted At",
             "description": "UTC timestamp of the deletion action."
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id",
+            "description": "Optional local client device record ID corresponding to the deleted record."
           }
         },
         "additionalProperties": false,

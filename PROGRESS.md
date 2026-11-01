@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `milestone-0.7.1.1-auth-retention-corrections`  
+**Current Branch:** `milestone-0.7.1.2-sync-integrity-verification`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -197,13 +197,46 @@
 - [x] Archived execution prompt in [prompts/015_milestone_07_1_1_auth_retention_corrections.md](file:///e:/Projects/VITALSENSE/prompts/015_milestone_07_1_1_auth_retention_corrections.md).
 - [x] Produced final corrections report in [docs/milestone_07_1_1_auth_retention_corrections_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_1_auth_retention_corrections_report.md).
 
+### Milestone 0.7.1.2 — Sync Integrity & Verification
+- [x] **Alembic Migration 004** ([database/postgres/migrations/versions/004_tombstone_device_id.py](file:///e:/Projects/VITALSENSE/database/postgres/migrations/versions/004_tombstone_device_id.py)):
+  - Added `device_record_id` column to table `sync_tombstones`.
+  - Added composite index on `(person_id, device_record_id)` for high-performance resurrection checks.
+  - Verified upgrade to `head`, downgrade to `003_auth_password_resets`, and re-upgrade symmetry.
+- [x] **Tombstone Resurrection Protection (`OD-14`, `FR-PRIV-004`)**:
+  - Eliminated flawed join against deleted `health_records`.
+  - Resolved `SourceRecord.source_record_id` prior to `HealthRecord` deletion and stored directly on `SyncTombstone`.
+  - Replaying `device_record_id` is suppressed without requiring joins against deleted rows.
+  - Attempting to supersede a tombstoned record via `supersedes_record_id` is blocked with HTTP 409 Conflict.
+  - Enforced in-batch deletion ordering: deletions process before observations, guaranteeing deletion wins over replayed uploads in the same batch.
+  - Enforced strict tenant/person isolation: another person's record ID or device_record_id does not interfere.
+  - Made duplicate tombstone submissions completely idempotent.
+- [x] **Full-Resync Deletion Reconciliation Contract (`OD-14`)**:
+  - Formalized backend contract: devices returning after >30 days receive HTTP 409 `SYNC_CURSOR_EXPIRED`.
+  - Full resync (`last_sync_timestamp = None`) returns complete active server baseline and empty tombstones list.
+  - Documented client reconciliation algorithm: purge locally cached records absent from active baseline, while preserving and uploading pending drafts (`pending_upload`).
+  - Recorded client-side execution as specified and deferred to native client app milestones.
+- [x] **Password Reset Concurrency Integration Verification (`SEC-007`)**:
+  - Added true concurrent PostgreSQL integration test using `asyncio.gather` with two independent database sessions.
+  - Proved pessimistic row-level locking (`SELECT FOR UPDATE`) allows exactly one confirmation to succeed while the other is rejected with HTTP 400.
+  - Proved consistent password state, revocation of all refresh token families, and zero credential leakage in logs.
+- [x] **Retention Worker Deployment Safety Documentation (`OD-07`, `OD-14`)**:
+  - Documented recommended decoupled single-runner cron architecture in `services/workers/retention_worker.py`.
+  - Documented multi-process duplication risks when enabling the worker in API process lifespan (`ENABLE_RETENTION_WORKER=false` by default).
+  - Added startup warning in `services/api/main.py`.
+- [x] **Automated Verification Suite**:
+  - Added 8 comprehensive integration tests in [tests/test_sync_integrity.py](file:///e:/Projects/VITALSENSE/tests/test_sync_integrity.py).
+  - Executed full test suite: **60/60 tests PASSED** in 25.19s (100% pass rate).
+  - Re-exported OpenAPI specification and verified zero contract drift.
+- [x] Archived execution prompt in [prompts/016_milestone_07_1_2_sync_integrity_verification.md](file:///e:/Projects/VITALSENSE/prompts/016_milestone_07_1_2_sync_integrity_verification.md).
+- [x] Produced final report in [docs/milestone_07_1_2_sync_integrity_verification_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_2_sync_integrity_verification_report.md).
+
 ---
 
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
 - **Development Branch:** `dev` (baseline at commit `505ea99`)
-- **Implementation Feature Branch:** `milestone-0.7.1.1-auth-retention-corrections` (active working tree)
+- **Implementation Feature Branch:** `milestone-0.7.1.2-sync-integrity-verification` (active working tree)
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---

@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import HTTPException, status
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from vitalsense_common.config import settings
@@ -104,17 +104,43 @@ class SyncService:
         # ---------------------------------------------------------------------
         tombstones_processed = 0
         for tombstone in request.tombstones:
-            # Record persistent tombstone for other devices
-            ts_record = SyncTombstone(
-                person_id=person_id,
-                record_type=tombstone.record_type,
-                target_record_id=tombstone.target_record_id,
-                device_id=request.device_id,
-                deleted_at=tombstone.deleted_at,
-            )
-            session.add(ts_record)
+            # 2a. Resolve the original device_record_id BEFORE deleting the HealthRecord
+            resolved_device_record_id = getattr(tombstone, "device_record_id", None)
+            if not resolved_device_record_id:
+                hr_source_query = (
+                    select(SourceRecord.source_record_id)
+                    .join(HealthRecord, HealthRecord.source_id == SourceRecord.id)
+                    .where(
+                        HealthRecord.id == tombstone.target_record_id,
+                        HealthRecord.person_id == person_id,
+                    )
+                )
+                resolved_device_record_id = (
+                    await session.execute(hr_source_query)
+                ).scalar_one_or_none()
 
-            # Delete target canonical health record
+            # 2b. Check if tombstone already exists to keep duplicate submissions idempotent
+            existing_ts_query = select(SyncTombstone).where(
+                SyncTombstone.person_id == person_id,
+                SyncTombstone.target_record_id == tombstone.target_record_id,
+            )
+            existing_ts = (await session.execute(existing_ts_query)).scalar_one_or_none()
+            if existing_ts:
+                # Update device_record_id if previously missing
+                if resolved_device_record_id and not existing_ts.device_record_id:
+                    existing_ts.device_record_id = resolved_device_record_id
+            else:
+                ts_record = SyncTombstone(
+                    person_id=person_id,
+                    record_type=tombstone.record_type,
+                    target_record_id=tombstone.target_record_id,
+                    device_id=request.device_id,
+                    device_record_id=resolved_device_record_id,
+                    deleted_at=tombstone.deleted_at,
+                )
+                session.add(ts_record)
+
+            # 2c. Delete target canonical health record
             delete_stmt = delete(HealthRecord).where(
                 HealthRecord.id == tombstone.target_record_id,
                 HealthRecord.person_id == person_id,
@@ -197,6 +223,7 @@ class SyncService:
                 )
 
             # Resurrection prevention (OD-14, FR-PRIV-004)
+            # 1. Supersedes check: cannot supersede or resurrect a tombstoned record
             if obs.supersedes_record_id:
                 ts_check = select(SyncTombstone.id).where(
                     SyncTombstone.person_id == person_id,
@@ -209,15 +236,19 @@ class SyncService:
                         detail=f"Cannot supersede or resurrect deleted record '{obs.supersedes_record_id}'.",
                     )
 
+            # 2. Device record ID check: cannot resurrect a tombstoned device_record_id
+            # Does not depend on joining deleted HealthRecord rows!
             if obs.device_record_id:
-                tomb_query = (
-                    select(SyncTombstone.id)
-                    .join(HealthRecord, HealthRecord.id == SyncTombstone.target_record_id)
-                    .join(SourceRecord, SourceRecord.id == HealthRecord.source_id)
-                    .where(
-                        SyncTombstone.person_id == person_id,
-                        SourceRecord.source_record_id == obs.device_record_id,
-                    )
+                tomb_conditions = [SyncTombstone.device_record_id == obs.device_record_id]
+                try:
+                    parsed_uuid = uuid.UUID(obs.device_record_id)
+                    tomb_conditions.append(SyncTombstone.target_record_id == parsed_uuid)
+                except (ValueError, AttributeError):
+                    pass
+
+                tomb_query = select(SyncTombstone.id).where(
+                    SyncTombstone.person_id == person_id,
+                    or_(*tomb_conditions),
                 )
                 tomb_res = await session.execute(tomb_query)
                 if tomb_res.scalar_one_or_none():
@@ -389,6 +420,7 @@ class SyncService:
                 target_record_id=ts.target_record_id,
                 record_type=ts.record_type,
                 deleted_at=ts.deleted_at,
+                device_record_id=ts.device_record_id,
             )
             for ts in tombstone_rows
         ]

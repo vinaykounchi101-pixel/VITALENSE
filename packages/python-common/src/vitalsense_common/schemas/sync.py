@@ -123,6 +123,11 @@ class TombstoneItem(BaseModel):
         ...,
         description="UTC timestamp of the deletion action.",
     )
+    device_record_id: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Optional local client device record ID corresponding to the deleted record.",
+    )
 
 
 class TombstoneDTO(BaseModel):
@@ -134,6 +139,7 @@ class TombstoneDTO(BaseModel):
     target_record_id: uuid.UUID
     record_type: str
     deleted_at: datetime
+    device_record_id: Optional[str] = None
 
 
 class ObservationDTO(BaseModel):

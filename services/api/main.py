@@ -60,6 +60,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     retention_task: Optional[asyncio.Task] = None
     if settings.ENABLE_RETENTION_WORKER:
+        logger.warning(
+            "ENABLE_RETENTION_WORKER is active in API process lifespan. "
+            "In multi-worker/multi-pod production environments, run retention_worker "
+            "as a decoupled standalone cron/scheduled job instead to eliminate duplicate execution."
+        )
         from services.workers.retention_worker import retention_worker_loop
 
         retention_task = asyncio.create_task(retention_worker_loop())
