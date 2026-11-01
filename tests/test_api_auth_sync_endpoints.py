@@ -34,7 +34,10 @@ def test_web_auth_lifecycle_with_cookies() -> None:
     assert reg_resp.status_code == 201
     reg_data = reg_resp.json()
     assert "data" in reg_data
-    assert "access_token" in reg_data["data"]
+    # OD-18: Web response body MUST NOT expose tokens
+    assert "user_account_id" in reg_data["data"]
+    assert "access_token" not in reg_data["data"]
+    assert "refresh_token" not in reg_data["data"]
     # Check cookies attached (OD-18: HttpOnly access/refresh and double-submit CSRF cookie)
     assert "vitalsense_access_token" in reg_resp.cookies
     assert "vitalsense_refresh_token" in reg_resp.cookies
@@ -55,6 +58,9 @@ def test_web_auth_lifecycle_with_cookies() -> None:
     )
     assert ref_resp.status_code == 200
     assert "vitalsense_access_token" in ref_resp.cookies
+    # Web refresh body MUST NOT expose tokens
+    assert "access_token" not in ref_resp.json()["data"]
+    assert "refresh_token" not in ref_resp.json()["data"]
     new_csrf_token = ref_resp.cookies.get("vitalsense_csrf_token", csrf_token)
 
     # 4. Logout and clear cookies

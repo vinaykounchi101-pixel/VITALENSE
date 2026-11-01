@@ -25,7 +25,7 @@
 | **Password Hashing** | Argon2id (`argon2-cffi`) | `25.1.0` (m=65536, t=3, p=4) | High-cost GPU/ASIC-resistant password security (`OD-18`) |
 | **Token Lifecycle** | PyJWT | `2.15.1` (HS256) | 15-minute access tokens + 32-byte rotating refresh tokens |
 | **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) |
-| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (34/34 tests passing) |
+| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (52/52 tests passing) |
 | **Continuous Integration** | GitHub Actions | `ci.yml` (Python 3.12, PostgreSQL 16 service, least-privilege `contents: read`) | Automated testing, migration verification, and OpenAPI contract drift checking |
 
 ---
@@ -110,6 +110,9 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
   - Added `auth_refresh_tokens` table (SHA-256 token hashes, family tracking, consumption and revocation flags).
   - Added `sync_tombstones` table (immutable deletion tracking for offline synchronization).
   - Added `client_sync_cursors` table (per-device latest sync timestamp tracking).
+- **`003_auth_password_resets`**:
+  - Added `auth_password_resets` table (`id`, `user_account_id`, `token_hash`, `expires_at`, `is_consumed`, `consumed_at`, `is_revoked`, `created_at`) (`SEC-007`).
+  - Indexed `token_hash` and `user_account_id` for O(1) single-use lookup and atomic invalidation.
 
 ---
 
@@ -118,12 +121,15 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 - **Argon2id Password Hashing:** 64 MiB memory (`memory_cost=65536`), 3 iterations (`time_cost=3`), 4 parallelism lanes (`parallelism=4`).
 - **Brute Force Protection & Lockout:** Tracks `failed_login_attempts`. On 5 consecutive failed attempts, locks the account for 15 minutes (`locked_until`).
 - **Rate Limiting (`services/auth/rate_limiter.py`):** Sliding-window rate limiting per endpoint and client IP (10 requests/minute on login/register, 5 requests/minute on password reset).
+  - **Proxy Verification:** Strictly trusts `X-Forwarded-For` only if the direct socket peer IP is listed in `settings.TRUSTED_PROXIES` (default `127.0.0.1`, `::1`). Untrusted direct client IP spoofing is completely ignored.
+  - **Bounded Memory Defense:** Capped at `max_tracked_keys = 10000` with automatic eviction of expired entries and oldest-entry purging to prevent memory exhaustion DoS.
+  - **Horizontal Scaling:** Process-local in-memory tracking is designed for single-instance monolith deployments and testing; horizontal production deployments require an external token-bucket cache (e.g. Redis).
 - **Dual Client Boundaries:**
-  - **Web Client:** Sets `HttpOnly; Secure; SameSite=Strict` cookies for `vitalsense_access_token` and `vitalsense_refresh_token`. Sets client-readable `vitalsense_csrf_token` cookie (`SameSite=Strict; HttpOnly=False`) for CSRF double-submit protection.
-  - **Native / Mobile Clients:** Returns standard JSON payload containing `Bearer` access token and rotating refresh token; independent of browser cookie behavior.
+  - **Web Client:** Sets `HttpOnly; Secure; SameSite=Strict` cookies for `vitalsense_access_token` and `vitalsense_refresh_token`. Strictly returns `WebAuthResponse` (omitting access and refresh tokens from JSON response bodies). Sets client-readable `vitalsense_csrf_token` cookie (`SameSite=Strict; HttpOnly=False`) for CSRF double-submit protection.
+  - **Native / Mobile Clients:** Returns standard JSON `TokenResponse` containing Bearer access token and rotating refresh token for secure OS keychain storage (Android, iOS, Windows, macOS).
 - **CSRF Double-Submit Verification (`services/auth/dependencies.py`):** State-changing requests (`POST`, `PUT`, `PATCH`, `DELETE`) with cookie authentication must submit matching `X-CSRF-Token` header. Bearer token requests bypass CSRF checks.
 - **Rotating Refresh Token Families:** Refresh tokens rotate on every refresh with PostgreSQL `.with_for_update()` row-level locking to eliminate rotation race conditions. Reusing an already-consumed token triggers theft detection, immediately revoking all tokens in the entire session family (`OD-18`).
-- **Password Reset Foundations (`SEC-007`):** Generates single-use, expiring (15-minute) signed JWT tokens. Confirming reset updates the Argon2id credential, resets lockout counters, and revokes all active session families across devices.
+- **Single-Use Password Reset Enforcement (`SEC-007`):** Generates single-use, expiring (15-minute) tokens stored as SHA-256 hashes in `auth_password_resets`. Token consumption is atomic via `.with_for_update()`; replayed, expired, or revoked tokens are rejected. Successful reset updates the Argon2id credential, invalidates all other pending reset tokens for the user, and revokes all active session families across devices.
 
 ---
 
@@ -137,14 +143,15 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 - **Immutable Manual Entry & Correction (`OD-04`):** Manual corrections create a new `HealthRecord` revision with `origin = "user_entered"`, `correction_state = "corrected"`, preserve the original `event_timestamp`, and update the target record's `superseded_by_id`.
 - **Deletion Tombstones & Resurrection Prevention (`OD-14`):** Client deletions create rows in `sync_tombstones` and remove target rows from `health_records`. Observations attempting to supersede or resurrect tombstoned records are strictly rejected (HTTP 409).
 - **Account Deletion Precedence (`OD-07`, `SYNC-010`):** Synchronization verifies user account status; accounts in `deletion_pending` or `deleted` are blocked from syncing (HTTP 403).
-- **30-Day Cursor Expiry (`SYNC_CURSOR_EXPIRED`):** Reconnecting after >30 days offline triggers HTTP 409 `SYNC_CURSOR_EXPIRED`, requiring a safe full resynchronization workflow that preserves uncommitted local drafts.
-- **Operational Retention Pruning (`OD-07`):** Domain service methods `prune_expired_raw_payloads` and `prune_expired_tombstones` prune raw JSON payloads and expired tombstones older than 30 days while preserving lineage metadata.
+- **30-Day Cursor Expiry & Full Resync (`SYNC_CURSOR_EXPIRED`):** Reconnecting after >30 days offline triggers HTTP 409 `SYNC_CURSOR_EXPIRED`. Client recovers via full resync (`last_sync_timestamp = None`), purging local cache of records missing from the server's active baseline while preserving and ingesting un-synced offline drafts.
+- **Operational Retention Pruning Worker (`services/workers/retention_worker.py`):** Dedicated CLI and background runner executes `prune_expired_raw_payloads` and `prune_expired_tombstones` on a documented schedule (`settings.RETENTION_RUN_INTERVAL_HOURS`), emitting structured JSON audit logs and ensuring atomic transaction boundaries.
 
 ---
 
 ## 6. Verification & Automated Quality Gates
 
-- **Test Suite:** **44 tests passing** with 100% success rate:
+- **Test Suite:** **52 tests passing** with 100% success rate:
+  - `test_corrections_auth_retention.py`: Database-backed single-use password reset lifecycle, replay rejection, multi-token revocation, WebAuthResponse token omission, rate limiter anti-spoofing and memory bounding, operational retention worker runner, stale device full-resync reconciliation.
   - `test_migration_002.py`: 10 metric seeding, schema additions, constraints.
   - `test_auth_service.py`: Password validation, Argon2id, JWT, login, brute-force lockout, rotation, reuse theft detection, session listing & revocation.
   - `test_hardening_security_sync.py`: SameSite=Strict cookies, CSRF double-submit validation, rate limiting, password reset flow, batch limits, unit validation, timestamp bounds, account deletion precedence, resurrection prevention, operational retention pruner.

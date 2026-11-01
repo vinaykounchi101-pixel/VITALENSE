@@ -120,7 +120,12 @@ def test_csrf_double_submit_protection() -> None:
     assert ok_resp.status_code == 200
 
     # 5. Bearer token request bypasses CSRF requirement (for native / API clients)
-    bearer_token = resp.json()["data"]["access_token"]
+    mob_login = client.post(
+        "/api/v1/mobile/auth/login",
+        json={"email": email, "password": pwd},
+    )
+    assert mob_login.status_code == 200
+    bearer_token = mob_login.json()["data"]["access_token"]
     bearer_resp = client.post(
         "/api/v1/web/sync",
         headers={"Authorization": f"Bearer {bearer_token}"},
@@ -158,13 +163,16 @@ def test_password_reset_foundations() -> None:
     old_pwd = "OldPassword123!"
     new_pwd = "NewSecurePassword456!"
 
-    # 1. Register account
+    # 1. Register account via web client
     reg_resp = client.post(
         "/api/v1/web/auth/register",
         json={"email": email, "password": old_pwd, "display_name": "Reset User"},
     )
     assert reg_resp.status_code == 201
-    old_refresh_token = reg_resp.json()["data"]["refresh_token"]
+    # Verify web response body does NOT leak access or refresh tokens
+    assert "access_token" not in reg_resp.json()["data"]
+    assert "refresh_token" not in reg_resp.json()["data"]
+    old_refresh_token = reg_resp.cookies["vitalsense_refresh_token"]
 
     # 2. Request password reset token
     reset_req_resp = client.post(
@@ -181,6 +189,14 @@ def test_password_reset_foundations() -> None:
         json={"token": reset_token, "new_password": new_pwd},
     )
     assert confirm_resp.status_code == 200
+
+    # 3b. REPLAY PREVENTION (SEC-007): Replaying the consumed reset token MUST fail
+    replay_resp = client.post(
+        "/api/v1/web/auth/password-reset/confirm",
+        json={"token": reset_token, "new_password": "AnotherPassword789!"},
+    )
+    assert replay_resp.status_code == 400
+    assert "already been consumed" in replay_resp.json()["error"]["message"]
 
     # 4. Old password must fail
     fail_login = client.post(

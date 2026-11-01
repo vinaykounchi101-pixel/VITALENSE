@@ -28,6 +28,7 @@ from vitalsense_common.schemas.auth import (
     SessionItem,
     TokenResponse,
     UserProfileResponse,
+    WebAuthResponse,
 )
 from vitalsense_common.schemas.envelope import SuccessResponse
 from services.auth.dependencies import (
@@ -85,7 +86,7 @@ def _clear_auth_cookies(response: Response) -> None:
 
 @router.post(
     "/register",
-    response_model=SuccessResponse[TokenResponse],
+    response_model=SuccessResponse[WebAuthResponse],
     summary="Register Web User Account",
     status_code=status.HTTP_201_CREATED,
 )
@@ -94,17 +95,24 @@ async def register(
     raw_request: Request,
     response: Response,
     session: AsyncSession = Depends(get_db_session),
-) -> SuccessResponse[TokenResponse]:
-    """Register a new user account via Web client, issuing auth cookies and Bearer tokens."""
+) -> SuccessResponse[WebAuthResponse]:
+    """Register a new user account via Web client, issuing auth cookies without exposing tokens in JSON body (OD-18)."""
     auth_rate_limiter.check(raw_request, "web_auth_register", max_requests=10, window_seconds=60)
     tokens = await AuthService.register_user(session, request)
     _set_auth_cookies(response, tokens)
-    return SuccessResponse(data=tokens)
+    return SuccessResponse(
+        data=WebAuthResponse(
+            user_account_id=tokens.user_account_id,
+            person_id=tokens.person_id,
+            token_type="Bearer",
+            expires_in=tokens.expires_in,
+        )
+    )
 
 
 @router.post(
     "/login",
-    response_model=SuccessResponse[TokenResponse],
+    response_model=SuccessResponse[WebAuthResponse],
     summary="Login Web User",
 )
 async def login(
@@ -112,17 +120,24 @@ async def login(
     raw_request: Request,
     response: Response,
     session: AsyncSession = Depends(get_db_session),
-) -> SuccessResponse[TokenResponse]:
-    """Authenticate email and password, returning tokens and setting HttpOnly cookies."""
+) -> SuccessResponse[WebAuthResponse]:
+    """Authenticate email and password, setting HttpOnly cookies without exposing tokens in JSON body (OD-18)."""
     auth_rate_limiter.check(raw_request, "web_auth_login", max_requests=10, window_seconds=60)
     tokens = await AuthService.authenticate_user(session, request)
     _set_auth_cookies(response, tokens)
-    return SuccessResponse(data=tokens)
+    return SuccessResponse(
+        data=WebAuthResponse(
+            user_account_id=tokens.user_account_id,
+            person_id=tokens.person_id,
+            token_type="Bearer",
+            expires_in=tokens.expires_in,
+        )
+    )
 
 
 @router.post(
     "/refresh",
-    response_model=SuccessResponse[TokenResponse],
+    response_model=SuccessResponse[WebAuthResponse],
     summary="Refresh Web Session",
 )
 async def refresh(
@@ -131,8 +146,8 @@ async def refresh(
     body: Optional[RefreshTokenRequest] = None,
     session: AsyncSession = Depends(get_db_session),
     _csrf: None = Depends(verify_csrf_double_submit),
-) -> SuccessResponse[TokenResponse]:
-    """Rotate refresh token from cookie or body, invalidating prior token and rotating cookie."""
+) -> SuccessResponse[WebAuthResponse]:
+    """Rotate refresh token from cookie or body, rotating cookies without exposing tokens in JSON body (OD-18)."""
     token_str = (body.refresh_token if body else None) or raw_request.cookies.get(
         "vitalsense_refresh_token"
     )
@@ -148,7 +163,14 @@ async def refresh(
     )
     tokens = await AuthService.refresh_session(session, req)
     _set_auth_cookies(response, tokens)
-    return SuccessResponse(data=tokens)
+    return SuccessResponse(
+        data=WebAuthResponse(
+            user_account_id=tokens.user_account_id,
+            person_id=tokens.person_id,
+            token_type="Bearer",
+            expires_in=tokens.expires_in,
+        )
+    )
 
 
 @router.post(

@@ -109,6 +109,34 @@ class TokenResponse(BaseModel):
     )
 
 
+class WebAuthResponse(BaseModel):
+    """Payload returned upon successful Web authentication or token refresh.
+
+    Implements OD-18: Access and refresh tokens are delivered exclusively via
+    secure HttpOnly cookies and are strictly omitted from the JSON response body.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    user_account_id: uuid.UUID = Field(
+        ...,
+        description="Primary user account UUID.",
+    )
+    person_id: uuid.UUID = Field(
+        ...,
+        description="Associated canonical person UUID.",
+    )
+    token_type: str = Field(
+        default="Bearer",
+        description="Token type header prefix.",
+    )
+    expires_in: int = Field(
+        ...,
+        description="Access token lifetime in seconds.",
+    )
+
+
+
 class RefreshTokenRequest(BaseModel):
     """Payload for rotating refresh token exchange."""
 

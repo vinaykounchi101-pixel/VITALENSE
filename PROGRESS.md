@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `milestone-0.7.1-security-data-integrity`  
+**Current Branch:** `milestone-0.7.1.1-auth-retention-corrections`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -164,13 +164,46 @@
 - [x] Archived execution prompt in [prompts/014_milestone_07_1_security_sync_hardening.md](file:///e:/Projects/VITALSENSE/prompts/014_milestone_07_1_security_sync_hardening.md).
 - [x] Produced final audit and hardening report in [docs/milestone_07_1_security_sync_hardening_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_security_sync_hardening_report.md).
 
+### Milestone 0.7.1.1 — Authentication & Retention Corrections
+- [x] **Database Migration 003** ([database/postgres/migrations/versions/003_auth_password_resets.py](file:///e:/Projects/VITALSENSE/database/postgres/migrations/versions/003_auth_password_resets.py)):
+  - Created table `auth_password_resets` with SHA-256 token hash index, expiration, consumption, and revocation tracking.
+  - Verified migration upgrade, downgrade to 002, and re-upgrade symmetry.
+- [x] **Single-Use Password Reset Enforcement (`SEC-007`)**:
+  - Implemented database-backed token lifecycle in `services/auth/service.py`.
+  - Added atomic row-level locking (`with_for_update()`) to eliminate confirmation race conditions.
+  - Reject expired, consumed, revoked, and forged tokens.
+  - Automatically invalidate other pending reset tokens for user upon confirmation and revoke all active refresh token families across devices.
+- [x] **Web Auth Response Token Exposure Removal (`OD-18`)**:
+  - Defined `WebAuthResponse` in `packages/python-common/src/vitalsense_common/schemas/auth.py`.
+  - Updated `/register`, `/login`, and `/refresh` in `services/web_api/auth.py` to return `WebAuthResponse`, strictly omitting tokens from JSON bodies.
+  - Delivered access and refresh tokens exclusively via `HttpOnly; SameSite=Strict; Secure` cookies.
+  - Preserved Bearer token responses for native mobile/desktop platforms (`services/mobile_api/auth.py`).
+- [x] **Rate Limiter Hardening (`SEC-002`, `SEC-008`)**:
+  - Added `TRUSTED_PROXIES` configuration to eliminate blind trust in `X-Forwarded-For`.
+  - Bound memory footprint (`max_tracked_keys = 10000`) with automatic eviction of expired entries to prevent DoS.
+  - Enforced thread safety via synchronization locks.
+  - Documented process-local limitations vs distributed store (Redis) for horizontal scaling.
+- [x] **Operational Retention Pruning Worker (`OD-07`, `OD-14`)**:
+  - Implemented standalone CLI and background worker runner in `services/workers/retention_worker.py`.
+  - Automated pruning of `source_records.raw_payload` (>30 days) and `sync_tombstones` (>30 days).
+  - Integrated optional background loop into FastAPI application lifespan.
+- [x] **Stale Device Offline Reconciliation (`OD-14`)**:
+  - Reconciled 30-day tombstone retention with cursor expiration.
+  - Devices offline >30 days receive HTTP 409 `SYNC_CURSOR_EXPIRED` and recover via full resync (`last_sync_timestamp = None`), preserving un-synced offline drafts while preventing resurrection of tombstoned records.
+- [x] **Automated Verification Suite**:
+  - Added 8 comprehensive verification tests in [tests/test_corrections_auth_retention.py](file:///e:/Projects/VITALSENSE/tests/test_corrections_auth_retention.py).
+  - Executed full test suite: **52/52 tests PASSED** in 21.31s (100% pass rate).
+  - Re-exported OpenAPI specification and verified zero contract drift.
+- [x] Archived execution prompt in [prompts/015_milestone_07_1_1_auth_retention_corrections.md](file:///e:/Projects/VITALSENSE/prompts/015_milestone_07_1_1_auth_retention_corrections.md).
+- [x] Produced final corrections report in [docs/milestone_07_1_1_auth_retention_corrections_report.md](file:///e:/Projects/VITALSENSE/docs/milestone_07_1_1_auth_retention_corrections_report.md).
+
 ---
 
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
 - **Development Branch:** `dev` (baseline at commit `505ea99`)
-- **Implementation Feature Branch:** `milestone-0.7.1-security-data-integrity` (active working tree)
+- **Implementation Feature Branch:** `milestone-0.7.1.1-auth-retention-corrections` (active working tree)
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---

@@ -67,7 +67,7 @@
           "Web Auth"
         ],
         "summary": "Register Web User Account",
-        "description": "Register a new user account via Web client, issuing auth cookies and Bearer tokens.",
+        "description": "Register a new user account via Web client, issuing auth cookies without exposing tokens in JSON body (OD-18).",
         "operationId": "register_api_v1_web_auth_register_post",
         "requestBody": {
           "content": {
@@ -85,7 +85,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
                 }
               }
             }
@@ -110,7 +110,7 @@
           "Web Auth"
         ],
         "summary": "Login Web User",
-        "description": "Authenticate email and password, returning tokens and setting HttpOnly cookies.",
+        "description": "Authenticate email and password, setting HttpOnly cookies without exposing tokens in JSON body (OD-18).",
         "operationId": "login_api_v1_web_auth_login_post",
         "requestBody": {
           "content": {
@@ -128,7 +128,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
                 }
               }
             }
@@ -153,7 +153,7 @@
           "Web Auth"
         ],
         "summary": "Refresh Web Session",
-        "description": "Rotate refresh token from cookie or body, invalidating prior token and rotating cookie.",
+        "description": "Rotate refresh token from cookie or body, rotating cookies without exposing tokens in JSON body (OD-18).",
         "operationId": "refresh_api_v1_web_auth_refresh_post",
         "requestBody": {
           "content": {
@@ -178,7 +178,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
                 }
               }
             }
@@ -1899,6 +1899,29 @@
         ],
         "title": "SuccessResponse[UserProfileResponse]"
       },
+      "SuccessResponse_WebAuthResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WebAuthResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[WebAuthResponse]"
+      },
       "SuccessResponse_str_": {
         "properties": {
           "data": {
@@ -2121,6 +2144,42 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebAuthResponse": {
+        "properties": {
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "Primary user account UUID."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Associated canonical person UUID."
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "Token type header prefix.",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token lifetime in seconds."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_account_id",
+          "person_id",
+          "expires_in"
+        ],
+        "title": "WebAuthResponse",
+        "description": "Payload returned upon successful Web authentication or token refresh.\n\nImplements OD-18: Access and refresh tokens are delivered exclusively via\nsecure HttpOnly cookies and are strictly omitted from the JSON response body."
       }
     }
   }

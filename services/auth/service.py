@@ -10,6 +10,7 @@ Implements SEC-001 through SEC-011, OD-18, and FR-AUTH-001 through FR-AUTH-008:
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Tuple
@@ -22,7 +23,11 @@ from vitalsense_common.config import settings
 from vitalsense_common.logging import logger
 from vitalsense_common.models.account import Person, UserAccount
 from vitalsense_common.models.audit import AuditEvent
-from vitalsense_common.models.auth import AuthCredential, AuthRefreshToken
+from vitalsense_common.models.auth import (
+    AuthCredential,
+    AuthPasswordResetToken,
+    AuthRefreshToken,
+)
 from vitalsense_common.models.base import utc_now
 from vitalsense_common.schemas.auth import (
     LoginRequest,
@@ -549,6 +554,18 @@ class AuthService:
             return None
 
         reset_token = create_password_reset_token(user_account.id, expires_minutes=15)
+        token_hash = hashlib.sha256(reset_token.encode("utf-8")).hexdigest()
+        expires_at = utc_now() + timedelta(minutes=15)
+
+        reset_record = AuthPasswordResetToken(
+            user_account_id=user_account.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            is_consumed=False,
+            is_revoked=False,
+            created_at=utc_now(),
+        )
+        session.add(reset_record)
 
         audit = AuditEvent(
             actor_id=user_account.id,
@@ -563,7 +580,7 @@ class AuthService:
         await session.flush()
 
         logger.info(
-            "Password reset token generated",
+            "Password reset token generated and recorded",
             extra={"user_account_id": str(user_account.id)},
         )
         return reset_token
@@ -572,7 +589,7 @@ class AuthService:
     async def confirm_password_reset(
         session: AsyncSession, token: str, new_password: str
     ) -> None:
-        """Confirm password reset using expiring token, updating Argon2id hash and revoking all user sessions."""
+        """Confirm password reset with atomic single-use consumption and session invalidation (SEC-007)."""
         try:
             payload = decode_password_reset_token(token)
         except (TokenExpiredError, TokenInvalidError) as e:
@@ -582,6 +599,42 @@ class AuthService:
             ) from e
 
         user_id = uuid.UUID(payload["sub"])
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+        # Atomically query the reset token record with row-level locking (prevents concurrent replay)
+        token_query = (
+            select(AuthPasswordResetToken)
+            .where(AuthPasswordResetToken.token_hash == token_hash)
+            .with_for_update()
+        )
+        t_res = await session.execute(token_query)
+        token_record = t_res.scalar_one_or_none()
+
+        now = utc_now()
+
+        if not token_record or token_record.user_account_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid password reset token.",
+            )
+
+        if token_record.is_consumed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password reset token has already been consumed.",
+            )
+
+        if token_record.is_revoked:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password reset token has been revoked.",
+            )
+
+        if token_record.expires_at < now:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password reset token has expired.",
+            )
 
         try:
             validate_password_strength(new_password)
@@ -605,6 +658,21 @@ class AuthService:
         credential.failed_login_attempts = 0
         credential.locked_until = None
 
+        # Mark token consumed
+        token_record.is_consumed = True
+        token_record.consumed_at = now
+
+        # Invalidate all other active reset tokens for this user
+        revoke_resets_stmt = (
+            update(AuthPasswordResetToken)
+            .where(
+                AuthPasswordResetToken.user_account_id == user_id,
+                AuthPasswordResetToken.id != token_record.id,
+            )
+            .values(is_revoked=True)
+        )
+        await session.execute(revoke_resets_stmt)
+
         # Revoke all active sessions and refresh tokens for this user
         revoke_stmt = (
             update(AuthRefreshToken)
@@ -620,13 +688,13 @@ class AuthService:
             target_type="user_account",
             target_id=str(user_id),
             result="success",
-            metadata_={"action": "password_reset_all_sessions_revoked"},
+            metadata_={"action": "password_reset_single_use_consumed"},
         )
         session.add(audit)
         await session.flush()
 
         logger.info(
-            "Password reset completed and all sessions revoked",
+            "Password reset completed, token consumed, and all sessions revoked",
             extra={"user_account_id": str(user_id)},
         )
 

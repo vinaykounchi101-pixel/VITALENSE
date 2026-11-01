@@ -7,7 +7,7 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
 ## Current Status
 
 - **Roadmap Phase:** Phase 0 — Deployable Foundation Milestone
-- **Milestone:** Milestone 0.7.1 — Authentication, Ingestion & Synchronization Hardening Review (Complete)
+- **Milestone:** Milestone 0.7.1.1 — Authentication & Retention Corrections (Complete)
 - **Active Technical Baseline:** [VitalSense SRS v1.1.1 (Merged)](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)
 - **Active Product Baseline:** [VitalSense PRD v1.1](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)
 - **Architecture Blueprint:** [System Architecture Blueprint](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)
@@ -66,13 +66,15 @@ vitalsense/
 │   │   └── synthetic_records.json
 │   └── postgres/
 │       ├── alembic.ini
-│       └── migrations/                 # Versioned migration scripts (001, 002)
+│       └── migrations/                 # Versioned migration scripts (001, 002, 003)
 ├── docs/                               # Specifications, PRD, SRS, validation reports, and decisions
 │   ├── architecture/
 │   │   ├── approved_decisions_record.md
 │   │   ├── system_architecture.md
 │   │   └── decision_workshop.md
 │   ├── milestone_07_core_authentication_ingestion_sync_implementation_report.md
+│   ├── milestone_07_1_security_sync_hardening_report.md
+│   ├── milestone_07_1_1_auth_retention_corrections_report.md
 │   ├── VitalSense_PRD_v1.1.md
 │   ├── VitalSense_SRS_v1.1.1_Merged.md
 │   └── VitalSense_SRS_v1.1.1_Open_Decision_Register.md
@@ -93,8 +95,9 @@ vitalsense/
 │   ├── auth/                           # Authentication & session domain service
 │   ├── sync/                           # Health data ingestion & cross-platform sync service
 │   ├── mobile_api/                     # Mobile API router namespace (/api/v1/mobile)
-│   └── web_api/                        # Web API router namespace (/api/v1/web)
-└── tests/                              # Automated test suite (44 passing tests)
+│   ├── web_api/                        # Web API router namespace (/api/v1/web)
+│   └── workers/                        # Background operations & retention workers
+└── tests/                              # Automated test suite (52 passing tests)
 ```
 
 ---
@@ -123,7 +126,7 @@ alembic upgrade head
 
 ### 3. Run Automated Tests
 ```bash
-# Run the 34-test unit, integration, and contract test suite
+# Run the 52-test unit, integration, and contract test suite
 pytest -v
 ```
 
