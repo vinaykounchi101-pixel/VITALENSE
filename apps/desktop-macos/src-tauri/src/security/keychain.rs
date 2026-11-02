@@ -20,3 +20,4 @@ impl MacOsKeychain {
         get_generic_password(SERVICE_NAME, account).map_err(|e| e.to_string())
     }
 }
+

@@ -73,3 +73,4 @@ This sprint delivered a comprehensive, production-conscious implementation acros
 - **Medical Disclaimer:** Mandatory banner (*"Insights are for educational and wellness tracking only, never medical diagnosis."*) enforced on all AI intelligence briefings and predictive forecasting endpoints.
 - **Zero Fabrication:** Missing sensor readings display honest empty states. Sensor adapters never synthesize artificial measurements.
 - **Privacy & GDPR:** Single-click machine-readable JSON data export (Art. 20) and password-verified cascading account erasure (Art. 17).
+

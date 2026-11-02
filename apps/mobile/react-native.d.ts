@@ -22,3 +22,4 @@ declare module "react-native" {
 declare module "expo-status-bar" {
   export const StatusBar: (props: { style?: "auto" | "inverted" | "light" | "dark" }) => any;
 }
+

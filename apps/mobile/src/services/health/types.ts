@@ -16,3 +16,4 @@ export interface HealthPlatformAdapter {
   checkPermissions(): Promise<PermissionStatus>;
   readRecentRecords(startTime: Date, endTime: Date): Promise<HealthMetricRecord[]>;
 }
+

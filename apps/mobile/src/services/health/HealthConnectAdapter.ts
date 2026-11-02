@@ -50,3 +50,4 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
 }
 
 export const healthConnectAdapter = new HealthConnectAdapter();
+

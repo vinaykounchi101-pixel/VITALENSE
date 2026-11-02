@@ -30,3 +30,4 @@ impl DesktopDatabase {
         Ok(Self { conn })
     }
 }
+

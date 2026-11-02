@@ -122,3 +122,4 @@ export class OfflineSyncWorker {
 }
 
 export const offlineSyncWorker = new OfflineSyncWorker();
+

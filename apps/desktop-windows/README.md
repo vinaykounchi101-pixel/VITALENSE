@@ -20,3 +20,4 @@
    ```powershell
    cargo tauri build
    ```
+

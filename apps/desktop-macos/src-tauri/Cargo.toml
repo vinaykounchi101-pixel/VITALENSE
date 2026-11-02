@@ -16,3 +16,4 @@ security-framework = "2.9"
 
 [build-dependencies]
 tauri-build = { version = "1.6" }
+

@@ -44,3 +44,4 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
 }
 
 export const healthKitAdapter = new HealthKitAdapter();
+

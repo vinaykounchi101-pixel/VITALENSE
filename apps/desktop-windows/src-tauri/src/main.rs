@@ -45,3 +45,4 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running VitalSense desktop application");
 }
+
