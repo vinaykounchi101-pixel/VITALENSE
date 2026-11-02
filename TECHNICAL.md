@@ -25,7 +25,11 @@
 | **Password Hashing** | Argon2id (`argon2-cffi`) | `25.1.0` (m=65536, t=3, p=4) | High-cost GPU/ASIC-resistant password security (`OD-18`) |
 | **Token Lifecycle** | PyJWT | `2.15.1` (HS256) | 15-minute access tokens + 32-byte rotating refresh tokens |
 | **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) |
-| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (60/60 tests passing) |
+| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (75/75 tests passing) |
+| **Frontend Framework** | Next.js + React | `14.2.35` / `18.3.1` | Production web application dashboard with IndexedDB offline store |
+| **Mobile Framework** | React Native + Expo | `0.74.5` / `51.0.0` | Unified cross-platform Android & iOS client architecture |
+| **Desktop Runtime** | Tauri / Rust | `1.6` | Lightweight native desktop clients for Windows and macOS |
+| **Containerization** | Docker & Compose | Multi-stage | Full-stack deployment (PostgreSQL 18, FastAPI, Next.js, Nginx) |
 | **Continuous Integration** | GitHub Actions | `ci.yml` (Python 3.12, PostgreSQL 16 service, least-privilege `contents: read`) | Automated testing, migration verification, and OpenAPI contract drift checking |
 
 ---
@@ -43,17 +47,18 @@ VitalSense targets **five first-class platforms developed in parallel** (`OD-16`
 VITALSENSE/
 ├── .github/                      # GitHub Actions workflows (ci.yml)
 ├── apps/                         # First-class client applications (OD-16)
-│   ├── android/                  # Android client (Kotlin / Compose / Room + SQLCipher)
-│   ├── ios/                      # iOS client (SwiftUI / HealthKit / SQLite + SQLCipher)
-│   ├── desktop-windows/          # Windows desktop client (WinUI / Flutter / SQLCipher)
-│   ├── desktop-macos/            # macOS desktop client (SwiftUI / Flutter / SQLCipher)
-│   └── web/                      # Web application (Next.js / IndexedDB + Web Crypto)
+│   ├── mobile/                   # React Native + Expo (Android Health Connect & iOS HealthKit)
+│   ├── desktop-windows/          # Windows desktop client (Tauri / Rust / DPAPI / SQLCipher)
+│   ├── desktop-macos/            # macOS desktop client (Tauri / Rust / Keychain / SQLCipher)
+│   └── web/                      # Web application (Next.js 14 / IndexedDB + Web Crypto)
 ├── database/                     # Database migrations, configurations, and test fixtures
 │   ├── fixtures/
 │   │   └── synthetic_records.json
 │   └── postgres/
 │       ├── alembic.ini           # Alembic migration configuration
-│       └── migrations/           # Versioned migration scripts (001, 002, 003, 004)
+│       └── migrations/           # Versioned migration scripts (001 through 006)
+├── infrastructure/               # Containerization & reverse proxy
+│   └── docker/                   # Dockerfile.api, Dockerfile.web, nginx.conf
 ├── docs/                         # Specifications, PRD, SRS, validation reports, and decisions
 │   ├── architecture/
 │   │   ├── approved_decisions_record.md # Formal ADR for approved decisions (OD-01 to OD-22)

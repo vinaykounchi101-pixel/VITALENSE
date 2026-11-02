@@ -1,0 +1,37 @@
+{
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devPath": "http://localhost:3000",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "VitalSense",
+    "version": "0.1.0"
+  },
+  "tauri": {
+    "systemTray": {
+      "iconPath": "icons/tray.png",
+      "iconAsTemplate": true
+    },
+    "windows": [
+      {
+        "title": "VitalSense Health Intelligence",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 900,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "titleBarStyle": "Overlay"
+      }
+    ],
+    "macOS": {
+      "frameworks": ["Security.framework"],
+      "minimumSystemVersion": "13.0"
+    },
+    "security": {
+      "csp": "default-src 'self' http://localhost:8000; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  }
+}

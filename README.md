@@ -6,13 +6,14 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
 
 ## Current Status
 
-- **Roadmap Phase:** Phase 0 — Deployable Foundation Milestone
-- **Milestone:** Milestone 0.7.1.2 — Sync Integrity & Verification (Complete)
+- **Roadmap Phase:** Full-Scope Production Foundation Sprint
+- **Milestone:** Full-Scope Foundation (Complete — 75/75 Tests Passing)
 - **Active Technical Baseline:** [VitalSense SRS v1.1.1 (Merged)](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)
 - **Active Product Baseline:** [VitalSense PRD v1.1](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)
 - **Architecture Blueprint:** [System Architecture Blueprint](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)
 - **Approved Decisions:** [Consolidated ADR (ADR-001)](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)
 - **Decision Governance:** [Decision Register](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Open_Decision_Register.md)
+- **Sprint Final Report:** [docs/full_scope_sprint/FINAL_SPRINT_REPORT.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/FINAL_SPRINT_REPORT.md)
 
 ---
 
@@ -56,17 +57,18 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
 ```text
 vitalsense/
 ├── apps/                               # First-class client applications (OD-16)
-│   ├── android/                        # Android client (Kotlin / Compose / Room + SQLCipher)
-│   ├── ios/                            # iOS client (SwiftUI / HealthKit / SQLite + SQLCipher)
-│   ├── desktop-windows/                # Windows desktop client (WinUI / Flutter / SQLCipher)
-│   ├── desktop-macos/                  # macOS desktop client (SwiftUI / Flutter / SQLCipher)
-│   └── web/                            # Web application (Next.js / IndexedDB + Web Crypto)
+│   ├── mobile/                         # React Native + Expo (Android Health Connect & iOS HealthKit)
+│   ├── desktop-windows/                # Windows desktop client (Tauri / Rust / DPAPI / SQLCipher)
+│   ├── desktop-macos/                  # macOS desktop client (Tauri / Rust / Keychain / SQLCipher)
+│   └── web/                            # Web application (Next.js 14 / IndexedDB + Web Crypto)
 ├── database/                           # Database migrations, configurations, and test fixtures
 │   ├── fixtures/
 │   │   └── synthetic_records.json
 │   └── postgres/
 │       ├── alembic.ini
-│       └── migrations/                 # Versioned migration scripts (001, 002, 003, 004)
+│       └── migrations/                 # Versioned migration scripts (001 through 006)
+├── infrastructure/                     # Deployment & containerization
+│   └── docker/                         # Dockerfile.api, Dockerfile.web, nginx.conf
 ├── docs/                               # Specifications, PRD, SRS, validation reports, and decisions
 │   ├── architecture/
 │   │   ├── approved_decisions_record.md

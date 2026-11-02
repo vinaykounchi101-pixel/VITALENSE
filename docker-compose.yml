@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vitalsense}
+      POSTGRES_USER: ${POSTGRES_USER:-vitalsense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vitalsense_secure_dev}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vitalsense} -d ${POSTGRES_DB:-vitalsense}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vitalsense}:${POSTGRES_PASSWORD:-vitalsense_secure_dev}@postgres:5432/${POSTGRES_DB:-vitalsense}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-vitalsense_production_jwt_master_secret_key_minimum_32_bytes}
+      REFRESH_TOKEN_PEPPER: ${REFRESH_TOKEN_PEPPER:-vitalsense_refresh_token_pepper_secret_minimum_32_bytes}
+      ARGON2_SALT_PEPPER: ${ARGON2_SALT_PEPPER:-vitalsense_argon2_pepper_secret_minimum_32_bytes}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      APP_ENV: ${APP_ENV:-production}
+      PORT: 8000
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "alembic -c database/postgres/alembic.ini upgrade head &&
+             uvicorn services.main:app --host 0.0.0.0 --port 8000"
+
+  web:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+
+  proxy:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/docker/nginx.conf:/etc/nginx/nginx.conf:ro
+
+volumes:
+  postgres_data:
+    driver: local
