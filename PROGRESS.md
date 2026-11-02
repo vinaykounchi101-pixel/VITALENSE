@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `sprint-full-scope-foundation`  
+**Current Branch:** `dev`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -281,9 +281,9 @@
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
-- **Development Branch:** `dev` (baseline at commit `505ea99`)
-- **Previous Milestone Branch:** `milestone-0.7.1.2-sync-integrity-verification` (`2e27431`)
-- **Sprint Implementation Branch:** `sprint-full-scope-foundation` (all deliverables completed & verified)
+- **Development Branch:** `dev` (active working branch, consolidated at commit `611a721`)
+- **Status:** All feature and milestone branches merged into `dev` and cleanly retired
+- **Branch Policy:** All development consolidated on `dev`; releases promoted to `main`
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---
