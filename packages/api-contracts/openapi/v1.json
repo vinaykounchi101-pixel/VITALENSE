@@ -60,6 +60,924 @@
         }
       }
     },
+    "/api/v1/web/auth/register": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Register Web User Account",
+        "description": "Register a new user account via Web client, issuing auth cookies without exposing tokens in JSON body (OD-18).",
+        "operationId": "register_api_v1_web_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/login": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Login Web User",
+        "description": "Authenticate email and password, setting HttpOnly cookies without exposing tokens in JSON body (OD-18).",
+        "operationId": "login_api_v1_web_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/refresh": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Refresh Web Session",
+        "description": "Rotate refresh token from cookie or body, rotating cookies without exposing tokens in JSON body (OD-18).",
+        "operationId": "refresh_api_v1_web_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WebAuthResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/logout": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Logout Web User",
+        "description": "Revoke session family and clear auth cookies.",
+        "operationId": "logout_api_v1_web_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RefreshTokenRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/me": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Get Current User Profile",
+        "description": "Retrieve authenticated user account and primary person profile information.",
+        "operationId": "get_me_api_v1_web_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserProfileResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/sessions": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "List Active User Sessions",
+        "description": "List all active session families across user devices.",
+        "operationId": "list_sessions_api_v1_web_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_List_SessionItem__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/sessions/revoke": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Revoke Specific Session Family",
+        "description": "Revoke a specific session family by UUID.",
+        "operationId": "revoke_session_api_v1_web_auth_sessions_revoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/password-reset/request": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Request Web Password Reset",
+        "description": "Initiate password reset process, issuing a single-use expiring token.",
+        "operationId": "request_password_reset_endpoint_api_v1_web_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PasswordResetResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Auth"
+        ],
+        "summary": "Confirm Web Password Reset",
+        "description": "Reset account password using the token, revoking all active sessions.",
+        "operationId": "confirm_password_reset_endpoint_api_v1_web_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/sync": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Sync"
+        ],
+        "summary": "Batch Synchronize Web Client Observations",
+        "description": "Execute batch synchronization for the web client (IndexedDB offline cache).",
+        "operationId": "synchronize_web_api_v1_web_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/sync/full-resync": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Web Sync"
+        ],
+        "summary": "Safe Full Resynchronization for Web Client",
+        "description": "Reset cursor and retrieve baseline records while preserving un-synced web drafts.",
+        "operationId": "full_resync_web_api_v1_web_sync_full_resync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/analytics/dashboard-summary": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Analytics & Visualizations"
+        ],
+        "summary": "Get 10-Metric Dashboard Summary and Recovery Score",
+        "description": "Retrieve rolling 7-day baselines, current metrics, and recovery score.",
+        "operationId": "get_dashboard_summary_api_v1_web_analytics_dashboard_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DashboardSummaryResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/analytics/trends/{metric_name}": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Analytics & Visualizations"
+        ],
+        "summary": "Get Metric Historical Trend and Baseline Statistics",
+        "description": "Retrieve historical time series with rolling average and standard deviation.",
+        "operationId": "get_metric_trends_api_v1_web_analytics_trends__metric_name__get",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Name"
+            }
+          },
+          {
+            "name": "period_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Period Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MetricTrendResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/intelligence/daily-briefing": {
+      "get": {
+        "tags": [
+          "Web API",
+          "AI & ML Intelligence"
+        ],
+        "summary": "Get Daily Health Intelligence Briefing",
+        "description": "Retrieve or generate daily health intelligence briefing with non-diagnostic disclaimer.",
+        "operationId": "get_daily_briefing_api_v1_web_intelligence_daily_briefing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DailyBriefingResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/intelligence/forecast/{metric_name}": {
+      "get": {
+        "tags": [
+          "Web API",
+          "AI & ML Intelligence"
+        ],
+        "summary": "Get Statistical Trend Forecast with Confidence Bounds",
+        "description": "Generate statistical rolling OLS trend forecast with 95% uncertainty intervals.",
+        "operationId": "get_metric_forecast_api_v1_web_intelligence_forecast__metric_name__get",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Name"
+            }
+          },
+          {
+            "name": "forecast_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 7,
+              "title": "Forecast Days"
+            }
+          },
+          {
+            "name": "history_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 7,
+              "default": 30,
+              "title": "History Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_HealthForecastResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/integrations/upload": {
+      "post": {
+        "tags": [
+          "Web API",
+          "External Integrations & Imports"
+        ],
+        "summary": "Import Health Archive (Apple Health XML/ZIP, Google Takeout JSON, or CSV)",
+        "description": "Parse and ingest external health data file via canonical SyncService.",
+        "operationId": "upload_health_file_api_v1_web_integrations_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_health_file_api_v1_web_integrations_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/medical/records": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Medical Records"
+        ],
+        "summary": "List Clinical Documents and Lab Tests",
+        "description": "Retrieve all clinical records for the authenticated person.",
+        "operationId": "list_medical_records_api_v1_web_medical_records_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MedicalRecordListResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Web API",
+          "Medical Records"
+        ],
+        "summary": "Add Clinical Document / Lab Test Metadata",
+        "description": "Register a new clinical document metadata entry.",
+        "operationId": "create_medical_record_api_v1_web_medical_records_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMedicalRecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MedicalRecordDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/fitness/workouts": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Fitness & Workouts"
+        ],
+        "summary": "List Logged Workouts",
+        "description": "Retrieve logged workouts for the authenticated person.",
+        "operationId": "list_workouts_api_v1_web_fitness_workouts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WorkoutListResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Web API",
+          "Fitness & Workouts"
+        ],
+        "summary": "Log Structured Workout Session",
+        "description": "Record workout session with exercise details, sets, reps, and targeted muscle groups.",
+        "operationId": "log_workout_api_v1_web_fitness_workouts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WorkoutDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/family/profiles": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Family & Dependent Profiles"
+        ],
+        "summary": "List All Family Profiles",
+        "description": "List all profiles associated with the user account.",
+        "operationId": "list_family_profiles_api_v1_web_family_profiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FamilyProfilesResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Web API",
+          "Family & Dependent Profiles"
+        ],
+        "summary": "Add Dependent or Family Member Profile",
+        "description": "Create a new person profile attached to the authenticated account.",
+        "operationId": "create_family_profile_api_v1_web_family_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PersonProfileDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/privacy/export": {
+      "get": {
+        "tags": [
+          "Web API",
+          "Privacy & GDPR Controls"
+        ],
+        "summary": "Export All Personal Health Records (GDPR Portability)",
+        "description": "Generate complete machine-readable JSON export of all personal health observations and metadata.",
+        "operationId": "export_personal_data_api_v1_web_privacy_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ExportHealthDataResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/web/privacy/delete-account": {
+      "post": {
+        "tags": [
+          "Web API",
+          "Privacy & GDPR Controls"
+        ],
+        "summary": "Permanently and Irreversibly Delete Account and All Health Data",
+        "description": "Execute GDPR Art 17 Right to Erasure, cascading across all database tables.",
+        "operationId": "delete_account_permanently_api_v1_web_privacy_delete_account_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DeleteAccountResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/web/status": {
       "get": {
         "tags": [
@@ -75,6 +993,910 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse_Dict_str__Any__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/register": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Register Mobile User Account",
+        "description": "Register a new user account from a mobile/native client, returning JWT and rotating refresh token.",
+        "operationId": "register_api_v1_mobile_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/login": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Login Mobile User",
+        "description": "Authenticate mobile user and establish a persistent device session family.",
+        "operationId": "login_api_v1_mobile_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/refresh": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Refresh Mobile Session",
+        "description": "Rotate the refresh token for a mobile device. Detects token reuse and revokes compromised families.",
+        "operationId": "refresh_api_v1_mobile_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_TokenResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/logout": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Logout Mobile User",
+        "description": "Revoke the session family associated with the presented refresh token.",
+        "operationId": "logout_api_v1_mobile_auth_logout_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/me": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Get Current User Profile",
+        "description": "Retrieve authenticated user and person details.",
+        "operationId": "get_me_api_v1_mobile_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_UserProfileResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/sessions": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "List Active User Sessions",
+        "description": "List all registered device sessions for the authenticated user.",
+        "operationId": "list_sessions_api_v1_mobile_auth_sessions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_List_SessionItem__"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/sessions/revoke": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Revoke Specific Session Family",
+        "description": "Revoke a specific session family across all rotated tokens.",
+        "operationId": "revoke_session_api_v1_mobile_auth_sessions_revoke_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/password-reset/request": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Request Mobile Password Reset",
+        "description": "Initiate password reset process, issuing a single-use expiring token.",
+        "operationId": "request_password_reset_endpoint_api_v1_mobile_auth_password_reset_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PasswordResetResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/auth/password-reset/confirm": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Auth"
+        ],
+        "summary": "Confirm Mobile Password Reset",
+        "description": "Reset account password using the token, revoking all active sessions.",
+        "operationId": "confirm_password_reset_endpoint_api_v1_mobile_auth_password_reset_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordResetConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_str_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/sync": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Sync"
+        ],
+        "summary": "Batch Synchronize Mobile Client Observations and Deletions",
+        "description": "Execute batch synchronization for mobile and native clients (Android, iOS, Windows, macOS).\n\nIngests new health observations, applies corrections, propagates tombstones, and returns server deltas.\nReturns HTTP 409 SYNC_CURSOR_EXPIRED if the client has been offline for >30 days.",
+        "operationId": "synchronize_mobile_api_v1_mobile_sync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/sync/full-resync": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Mobile Sync"
+        ],
+        "summary": "Safe Full Resynchronization Preserving Offline Drafts",
+        "description": "Execute safe full resynchronization following cursor expiration.\n\nForces last_sync_timestamp to None to retrieve canonical server baseline,\nwhile ingesting pending local offline changes and drafts.",
+        "operationId": "full_resync_mobile_api_v1_mobile_sync_full_resync_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSyncRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_BatchSyncResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/analytics/dashboard-summary": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Analytics & Visualizations"
+        ],
+        "summary": "Get 10-Metric Dashboard Summary and Recovery Score",
+        "description": "Retrieve rolling 7-day baselines, current metrics, and recovery score.",
+        "operationId": "get_dashboard_summary_api_v1_mobile_analytics_dashboard_summary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DashboardSummaryResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/analytics/trends/{metric_name}": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Analytics & Visualizations"
+        ],
+        "summary": "Get Metric Historical Trend and Baseline Statistics",
+        "description": "Retrieve historical time series with rolling average and standard deviation.",
+        "operationId": "get_metric_trends_api_v1_mobile_analytics_trends__metric_name__get",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Name"
+            }
+          },
+          {
+            "name": "period_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Period Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MetricTrendResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/intelligence/daily-briefing": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "AI & ML Intelligence"
+        ],
+        "summary": "Get Daily Health Intelligence Briefing",
+        "description": "Retrieve or generate daily health intelligence briefing with non-diagnostic disclaimer.",
+        "operationId": "get_daily_briefing_api_v1_mobile_intelligence_daily_briefing_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DailyBriefingResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/intelligence/forecast/{metric_name}": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "AI & ML Intelligence"
+        ],
+        "summary": "Get Statistical Trend Forecast with Confidence Bounds",
+        "description": "Generate statistical rolling OLS trend forecast with 95% uncertainty intervals.",
+        "operationId": "get_metric_forecast_api_v1_mobile_intelligence_forecast__metric_name__get",
+        "parameters": [
+          {
+            "name": "metric_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Metric Name"
+            }
+          },
+          {
+            "name": "forecast_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 7,
+              "title": "Forecast Days"
+            }
+          },
+          {
+            "name": "history_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 7,
+              "default": 30,
+              "title": "History Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_HealthForecastResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/integrations/upload": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "External Integrations & Imports"
+        ],
+        "summary": "Import Health Archive (Apple Health XML/ZIP, Google Takeout JSON, or CSV)",
+        "description": "Parse and ingest external health data file via canonical SyncService.",
+        "operationId": "upload_health_file_api_v1_mobile_integrations_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_health_file_api_v1_mobile_integrations_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_dict_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/medical/records": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Medical Records"
+        ],
+        "summary": "List Clinical Documents and Lab Tests",
+        "description": "Retrieve all clinical records for the authenticated person.",
+        "operationId": "list_medical_records_api_v1_mobile_medical_records_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MedicalRecordListResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Medical Records"
+        ],
+        "summary": "Add Clinical Document / Lab Test Metadata",
+        "description": "Register a new clinical document metadata entry.",
+        "operationId": "create_medical_record_api_v1_mobile_medical_records_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMedicalRecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_MedicalRecordDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/fitness/workouts": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Fitness & Workouts"
+        ],
+        "summary": "List Logged Workouts",
+        "description": "Retrieve logged workouts for the authenticated person.",
+        "operationId": "list_workouts_api_v1_mobile_fitness_workouts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WorkoutListResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Fitness & Workouts"
+        ],
+        "summary": "Log Structured Workout Session",
+        "description": "Record workout session with exercise details, sets, reps, and targeted muscle groups.",
+        "operationId": "log_workout_api_v1_mobile_fitness_workouts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_WorkoutDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/family/profiles": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Family & Dependent Profiles"
+        ],
+        "summary": "List All Family Profiles",
+        "description": "List all profiles associated with the user account.",
+        "operationId": "list_family_profiles_api_v1_mobile_family_profiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_FamilyProfilesResponse_"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Family & Dependent Profiles"
+        ],
+        "summary": "Add Dependent or Family Member Profile",
+        "description": "Create a new person profile attached to the authenticated account.",
+        "operationId": "create_family_profile_api_v1_mobile_family_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonProfileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_PersonProfileDTO_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/privacy/export": {
+      "get": {
+        "tags": [
+          "Mobile API",
+          "Privacy & GDPR Controls"
+        ],
+        "summary": "Export All Personal Health Records (GDPR Portability)",
+        "description": "Generate complete machine-readable JSON export of all personal health observations and metadata.",
+        "operationId": "export_personal_data_api_v1_mobile_privacy_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ExportHealthDataResponse_"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mobile/privacy/delete-account": {
+      "post": {
+        "tags": [
+          "Mobile API",
+          "Privacy & GDPR Controls"
+        ],
+        "summary": "Permanently and Irreversibly Delete Account and All Health Data",
+        "description": "Execute GDPR Art 17 Right to Erasure, cascading across all database tables.",
+        "operationId": "delete_account_permanently_api_v1_mobile_privacy_delete_account_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_DeleteAccountResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -107,6 +1929,657 @@
   },
   "components": {
     "schemas": {
+      "BatchSyncRequest": {
+        "properties": {
+          "device_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Device Id",
+            "description": "Client device identifier."
+          },
+          "last_sync_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Timestamp",
+            "description": "Latest sync timestamp acknowledged by client device. None for initial sync."
+          },
+          "observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationItem"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Observations",
+            "description": "Batch of health observations captured or corrected offline. Maximum batch size is 500."
+          },
+          "tombstones": {
+            "items": {
+              "$ref": "#/components/schemas/TombstoneItem"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Tombstones",
+            "description": "Deletions performed locally on the client to propagate upstream. Maximum batch size is 500."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "device_id"
+        ],
+        "title": "BatchSyncRequest",
+        "description": "Batch payload submitted by client devices (Android, iOS, Windows, macOS, Web)."
+      },
+      "BatchSyncResponse": {
+        "properties": {
+          "server_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Timestamp",
+            "description": "Current server UTC timestamp."
+          },
+          "processed_count": {
+            "type": "integer",
+            "title": "Processed Count",
+            "description": "Number of newly inserted or corrected observations."
+          },
+          "duplicate_count": {
+            "type": "integer",
+            "title": "Duplicate Count",
+            "description": "Number of idempotent duplicate records safely skipped."
+          },
+          "tombstones_processed": {
+            "type": "integer",
+            "title": "Tombstones Processed",
+            "description": "Number of client deletions recorded."
+          },
+          "next_sync_cursor": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Next Sync Cursor",
+            "description": "Authoritative sync cursor timestamp to persist on the client device."
+          },
+          "server_observations": {
+            "items": {
+              "$ref": "#/components/schemas/ObservationDTO"
+            },
+            "type": "array",
+            "title": "Server Observations",
+            "description": "Health observations created or modified on other devices since last_sync_timestamp."
+          },
+          "server_tombstones": {
+            "items": {
+              "$ref": "#/components/schemas/TombstoneDTO"
+            },
+            "type": "array",
+            "title": "Server Tombstones",
+            "description": "Deletions committed on the server that must be pruned from client local SQLite storage."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "server_timestamp",
+          "processed_count",
+          "duplicate_count",
+          "tombstones_processed",
+          "next_sync_cursor"
+        ],
+        "title": "BatchSyncResponse",
+        "description": "Synchronization outcome containing upstream deltas, tombstones, and updated cursor."
+      },
+      "Body_upload_health_file_api_v1_mobile_integrations_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_health_file_api_v1_mobile_integrations_upload_post"
+      },
+      "Body_upload_health_file_api_v1_web_integrations_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_health_file_api_v1_web_integrations_upload_post"
+      },
+      "CreateMedicalRecordRequest": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "e.g. lab_result, immunization, clinical_note, prescription"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Title"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "record_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Record Date"
+          },
+          "document_metadata": {
+            "type": "object",
+            "title": "Document Metadata"
+          },
+          "clinical_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "title",
+          "record_date"
+        ],
+        "title": "CreateMedicalRecordRequest",
+        "description": "Payload to register a medical document or clinical result."
+      },
+      "CreatePersonProfileRequest": {
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Display Name"
+          },
+          "relationship_type": {
+            "type": "string",
+            "title": "Relationship Type",
+            "description": "self, child, spouse, parent, dependent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "display_name",
+          "relationship_type"
+        ],
+        "title": "CreatePersonProfileRequest",
+        "description": "Payload to add a dependent or family member profile."
+      },
+      "CreateWorkoutRequest": {
+        "properties": {
+          "workout_type": {
+            "type": "string",
+            "title": "Workout Type",
+            "description": "e.g. strength, cardio, hiit, yoga"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Duration Minutes"
+          },
+          "measured_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Measured At"
+          },
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseDetail"
+            },
+            "type": "array",
+            "title": "Exercises"
+          },
+          "muscle_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Muscle Groups",
+            "description": "Targeted anatomical muscle groups"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workout_type",
+          "duration_minutes"
+        ],
+        "title": "CreateWorkoutRequest",
+        "description": "Payload to log a detailed workout session."
+      },
+      "DailyBriefingResponse": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "insight_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Insight Date"
+          },
+          "headline": {
+            "type": "string",
+            "title": "Headline"
+          },
+          "summary_text": {
+            "type": "string",
+            "title": "Summary Text"
+          },
+          "recovery_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Score"
+          },
+          "key_metrics": {
+            "type": "object",
+            "title": "Key Metrics"
+          },
+          "recommendations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer",
+            "default": "Insights are for educational and wellness tracking only, never medical diagnosis."
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "insight_date",
+          "headline",
+          "summary_text",
+          "provider",
+          "generated_at"
+        ],
+        "title": "DailyBriefingResponse",
+        "description": "Daily health intelligence briefing with mandatory non-diagnostic disclaimer."
+      },
+      "DashboardSummaryResponse": {
+        "properties": {
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Generated At"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MetricSummary"
+            },
+            "type": "object",
+            "title": "Metrics"
+          },
+          "recovery_score": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recovery Score"
+          },
+          "data_quality_score": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Data Quality Score",
+            "default": 100.0
+          },
+          "days_tracked": {
+            "type": "integer",
+            "title": "Days Tracked",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "person_id",
+          "generated_at",
+          "metrics"
+        ],
+        "title": "DashboardSummaryResponse",
+        "description": "Comprehensive dashboard summary covering all 10 Phase 1 metrics and recovery score."
+      },
+      "DeleteAccountRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Confirmation password to prevent accidental deletion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "password"
+        ],
+        "title": "DeleteAccountRequest",
+        "description": "Payload to confirm irreversible account deletion."
+      },
+      "DeleteAccountResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "deleted"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": "Account and all associated personal health data have been irreversibly deleted."
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deleted_at"
+        ],
+        "title": "DeleteAccountResponse",
+        "description": "Confirmation of cascading account deletion."
+      },
+      "ExerciseDetail": {
+        "properties": {
+          "exercise_name": {
+            "type": "string",
+            "title": "Exercise Name"
+          },
+          "target_muscle": {
+            "type": "string",
+            "title": "Target Muscle"
+          },
+          "sets": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseSet"
+            },
+            "type": "array",
+            "title": "Sets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_name",
+          "target_muscle"
+        ],
+        "title": "ExerciseDetail",
+        "description": "An individual exercise performance log."
+      },
+      "ExerciseSet": {
+        "properties": {
+          "set_number": {
+            "type": "integer",
+            "title": "Set Number"
+          },
+          "reps": {
+            "type": "integer",
+            "title": "Reps"
+          },
+          "weight_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Kg"
+          },
+          "rpe": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rpe",
+            "description": "Rate of perceived exertion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "set_number",
+          "reps"
+        ],
+        "title": "ExerciseSet",
+        "description": "A single set within an exercise."
+      },
+      "ExportHealthDataResponse": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "export_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Export Timestamp"
+          },
+          "format_version": {
+            "type": "string",
+            "title": "Format Version",
+            "default": "1.0"
+          },
+          "person_profiles": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Person Profiles"
+          },
+          "records": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "tombstones": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tombstones"
+          },
+          "total_records": {
+            "type": "integer",
+            "title": "Total Records",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "export_timestamp"
+        ],
+        "title": "ExportHealthDataResponse",
+        "description": "Machine-readable JSON export of all personal health records and metadata."
+      },
+      "FamilyProfilesResponse": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/PersonProfileDTO"
+            },
+            "type": "array",
+            "title": "Profiles"
+          }
+        },
+        "type": "object",
+        "title": "FamilyProfilesResponse",
+        "description": "List of all authorized person profiles under the account."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthForecastResponse": {
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "forecast_days": {
+            "type": "integer",
+            "title": "Forecast Days"
+          },
+          "history_days_used": {
+            "type": "integer",
+            "title": "History Days Used"
+          },
+          "has_sufficient_history": {
+            "type": "boolean",
+            "title": "Has Sufficient History"
+          },
+          "model_type": {
+            "type": "string",
+            "title": "Model Type",
+            "description": "Explicit statistical methodology: linear rolling OLS with t-distribution bounds",
+            "default": "statistical_rolling_ols"
+          },
+          "trend_direction": {
+            "type": "string",
+            "title": "Trend Direction"
+          },
+          "trend_slope_per_day": {
+            "type": "number",
+            "title": "Trend Slope Per Day"
+          },
+          "anomalies_detected": {
+            "type": "integer",
+            "title": "Anomalies Detected",
+            "default": 0
+          },
+          "projections": {
+            "items": {
+              "$ref": "#/components/schemas/MLForecastPoint"
+            },
+            "type": "array",
+            "title": "Projections"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer",
+            "default": "Insights are for educational and wellness tracking only, never medical diagnosis."
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric_name",
+          "unit",
+          "forecast_days",
+          "history_days_used",
+          "has_sufficient_history",
+          "trend_direction",
+          "trend_slope_per_day"
+        ],
+        "title": "HealthForecastResponse",
+        "description": "Statistical health trend projection and anomaly detection."
+      },
       "LivenessResponse": {
         "properties": {
           "status": {
@@ -148,6 +2621,703 @@
         "title": "LivenessResponse",
         "description": "Payload for the lightweight /health liveness probe."
       },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email address.",
+            "examples": [
+              "user@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Password",
+            "description": "User password."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Unique client device identifier."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Human-readable device label."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Payload for user authentication."
+      },
+      "MLForecastPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "predicted_value": {
+            "type": "number",
+            "title": "Predicted Value"
+          },
+          "lower_bound": {
+            "type": "number",
+            "title": "Lower Bound"
+          },
+          "upper_bound": {
+            "type": "number",
+            "title": "Upper Bound"
+          },
+          "confidence_level": {
+            "type": "number",
+            "title": "Confidence Level",
+            "default": 0.95
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "predicted_value",
+          "lower_bound",
+          "upper_bound"
+        ],
+        "title": "MLForecastPoint",
+        "description": "A projected time-series point with statistical uncertainty bounds."
+      },
+      "MedicalRecordDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "provider_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Name"
+          },
+          "record_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Record Date"
+          },
+          "document_metadata": {
+            "type": "object",
+            "title": "Document Metadata"
+          },
+          "clinical_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clinical Notes"
+          },
+          "disclaimer": {
+            "type": "string",
+            "title": "Disclaimer",
+            "default": "Medical records and summaries are for personal documentation only, never medical diagnosis."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "person_id",
+          "record_type",
+          "title",
+          "record_date",
+          "created_at"
+        ],
+        "title": "MedicalRecordDTO",
+        "description": "Clinical document record transfer object."
+      },
+      "MedicalRecordListResponse": {
+        "properties": {
+          "records": {
+            "items": {
+              "$ref": "#/components/schemas/MedicalRecordDTO"
+            },
+            "type": "array",
+            "title": "Records"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "MedicalRecordListResponse",
+        "description": "List of clinical records for a person."
+      },
+      "MetricSummary": {
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name"
+          },
+          "latest_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Value"
+          },
+          "latest_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Timestamp"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "rolling_7d_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling 7D Avg"
+          },
+          "change_from_baseline_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change From Baseline Pct"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Status category: normal, optimal, elevated, low, insufficient_data",
+            "default": "normal"
+          },
+          "trend": {
+            "type": "string",
+            "title": "Trend",
+            "description": "Trend direction: rising, falling, stable",
+            "default": "stable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric_name",
+          "unit"
+        ],
+        "title": "MetricSummary",
+        "description": "Current snapshot and rolling average for a single metric."
+      },
+      "MetricTrendResponse": {
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name"
+          },
+          "canonical_unit": {
+            "type": "string",
+            "title": "Canonical Unit"
+          },
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "baseline_mean": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Mean"
+          },
+          "baseline_std": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Std"
+          },
+          "data_points": {
+            "items": {
+              "$ref": "#/components/schemas/TrendDataPoint"
+            },
+            "type": "array",
+            "title": "Data Points"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metric_name",
+          "canonical_unit",
+          "period"
+        ],
+        "title": "MetricTrendResponse",
+        "description": "Historical trend series with statistical baseline for charts."
+      },
+      "ObservationDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At"
+          },
+          "end_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Timestamp"
+          },
+          "source_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Timezone"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          },
+          "correction_state": {
+            "type": "string",
+            "title": "Correction State"
+          },
+          "superseded_by_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Superseded By Id"
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "person_id",
+          "metric_name",
+          "value",
+          "unit",
+          "measured_at",
+          "origin",
+          "correction_state",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ObservationDTO",
+        "description": "Server-side health observation record dispatched to client devices."
+      },
+      "ObservationItem": {
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "title": "Metric Name",
+            "description": "Metric category identifier. Must be one of the approved Phase 1 metrics.",
+            "examples": [
+              "steps",
+              "heart_rate",
+              "blood_pressure_systolic"
+            ]
+          },
+          "value": {
+            "type": "number",
+            "title": "Value",
+            "description": "Numeric measurement value."
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "description": "Measurement unit corresponding to the metric definition.",
+            "examples": [
+              "count",
+              "bpm",
+              "mmHg",
+              "mg/dL",
+              "percent",
+              "kcal"
+            ]
+          },
+          "measured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Measured At",
+            "description": "Authoritative UTC timestamp when the measurement took place. Preserved during corrections."
+          },
+          "end_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Timestamp",
+            "description": "End UTC timestamp for duration metrics (e.g. workout_session, sleep_session)."
+          },
+          "source_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Timezone",
+            "description": "Timezone string where the measurement was recorded (e.g. 'America/New_York').",
+            "default": "UTC"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "device_sync",
+              "user_entered",
+              "calculated",
+              "imported"
+            ],
+            "title": "Origin",
+            "description": "Provenance of the observation. Controlled manual entries must use 'user_entered'.",
+            "default": "device_sync"
+          },
+          "correction_state": {
+            "type": "string",
+            "enum": [
+              "original",
+              "corrected",
+              "superseded"
+            ],
+            "title": "Correction State",
+            "description": "Revision state of the observation.",
+            "default": "original"
+          },
+          "supersedes_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supersedes Record Id",
+            "description": "If correcting an existing record, the UUID of the record being superseded."
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id",
+            "description": "Client device's local record UUID or primary key."
+          },
+          "idempotency_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Idempotency Key",
+            "description": "Unique idempotency key ensuring deduplication across repeated sync attempts."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Extensible metadata payload (e.g. workout type, sleep stage breakdown)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "metric_name",
+          "value",
+          "unit",
+          "measured_at"
+        ],
+        "title": "ObservationItem",
+        "description": "Client observation submission payload item for batch ingestion."
+      },
+      "PasswordResetConfirmRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Expiring single-use password reset token."
+          },
+          "new_password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "New Password",
+            "description": "New plaintext password meeting complexity criteria.",
+            "examples": [
+              "NewSecurePassword123!"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "PasswordResetConfirmRequest",
+        "description": "Payload to confirm password reset with token."
+      },
+      "PasswordResetRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Canonical account email address.",
+            "examples": [
+              "user@example.com"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PasswordResetRequest",
+        "description": "Payload to request password reset token."
+      },
+      "PasswordResetResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Status message regarding the password reset process."
+          },
+          "reset_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reset Token",
+            "description": "In development or testing environments, the generated reset token for verification."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "PasswordResetResponse",
+        "description": "Response returned upon password reset request."
+      },
+      "PersonProfileDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "relationship_type": {
+            "type": "string",
+            "title": "Relationship Type"
+          },
+          "is_primary": {
+            "type": "boolean",
+            "title": "Is Primary",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_account_id",
+          "display_name",
+          "relationship_type",
+          "created_at"
+        ],
+        "title": "PersonProfileDTO",
+        "description": "Person profile details."
+      },
       "ReadinessResponse": {
         "properties": {
           "status": {
@@ -177,6 +3347,278 @@
         "title": "ReadinessResponse",
         "description": "Payload for the /ready readiness probe evaluating dependency availability."
       },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Plaintext refresh token received from previous login/refresh."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Client device identifier requesting rotation."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest",
+        "description": "Payload for rotating refresh token exchange."
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "User email address (canonical identity).",
+            "examples": [
+              "user@example.com"
+            ]
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Password",
+            "description": "Plaintext password meeting complexity criteria (minimum 8 characters).",
+            "examples": [
+              "CorrectHorseBatteryStaple123!"
+            ]
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Optional user display name.",
+            "examples": [
+              "Alice"
+            ]
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Unique device identifier registering the account."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Human-readable device name (e.g. 'Pixel 8', 'MacBook Pro')."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "description": "Payload for user account registration."
+      },
+      "RevokeSessionRequest": {
+        "properties": {
+          "family_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Family Id",
+            "description": "Session family UUID to revoke across all rotated tokens."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family_id"
+        ],
+        "title": "RevokeSessionRequest",
+        "description": "Payload to revoke a specific session family."
+      },
+      "SessionItem": {
+        "properties": {
+          "family_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Family Id",
+            "description": "Unique session family identifier."
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Device identifier."
+          },
+          "device_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Name",
+            "description": "Device label."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp when the session family was established."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At",
+            "description": "Expiration timestamp of the latest active refresh token in the family."
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "description": "Whether the session family contains valid, unrevoked tokens."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "family_id",
+          "created_at",
+          "expires_at",
+          "is_active"
+        ],
+        "title": "SessionItem",
+        "description": "Representation of an active or historical device session family."
+      },
+      "SuccessResponse_BatchSyncResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/BatchSyncResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[BatchSyncResponse]"
+      },
+      "SuccessResponse_DailyBriefingResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DailyBriefingResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[DailyBriefingResponse]"
+      },
+      "SuccessResponse_DashboardSummaryResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DashboardSummaryResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[DashboardSummaryResponse]"
+      },
+      "SuccessResponse_DeleteAccountResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/DeleteAccountResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[DeleteAccountResponse]"
+      },
       "SuccessResponse_Dict_str__Any__": {
         "properties": {
           "data": {
@@ -200,6 +3642,772 @@
           "data"
         ],
         "title": "SuccessResponse[Dict[str, Any]]"
+      },
+      "SuccessResponse_ExportHealthDataResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ExportHealthDataResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[ExportHealthDataResponse]"
+      },
+      "SuccessResponse_FamilyProfilesResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FamilyProfilesResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[FamilyProfilesResponse]"
+      },
+      "SuccessResponse_HealthForecastResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthForecastResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[HealthForecastResponse]"
+      },
+      "SuccessResponse_List_SessionItem__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/SessionItem"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[List[SessionItem]]"
+      },
+      "SuccessResponse_MedicalRecordDTO_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MedicalRecordDTO"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[MedicalRecordDTO]"
+      },
+      "SuccessResponse_MedicalRecordListResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MedicalRecordListResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[MedicalRecordListResponse]"
+      },
+      "SuccessResponse_MetricTrendResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/MetricTrendResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[MetricTrendResponse]"
+      },
+      "SuccessResponse_PasswordResetResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PasswordResetResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[PasswordResetResponse]"
+      },
+      "SuccessResponse_PersonProfileDTO_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PersonProfileDTO"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[PersonProfileDTO]"
+      },
+      "SuccessResponse_TokenResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/TokenResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[TokenResponse]"
+      },
+      "SuccessResponse_UserProfileResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UserProfileResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[UserProfileResponse]"
+      },
+      "SuccessResponse_WebAuthResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WebAuthResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[WebAuthResponse]"
+      },
+      "SuccessResponse_WorkoutDTO_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WorkoutDTO"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[WorkoutDTO]"
+      },
+      "SuccessResponse_WorkoutListResponse_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/WorkoutListResponse"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[WorkoutListResponse]"
+      },
+      "SuccessResponse_dict_": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[dict]"
+      },
+      "SuccessResponse_str_": {
+        "properties": {
+          "data": {
+            "type": "string",
+            "title": "Data"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SuccessResponse[str]"
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token",
+            "description": "Signed HMAC-SHA256 JWT access token (15-minute expiration)."
+          },
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Rotating cryptographically secure 32-byte URL-safe refresh token."
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "Token type header prefix.",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token lifetime in seconds (e.g. 900 for 15 minutes)."
+          },
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "Primary user account UUID."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Associated canonical person UUID."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "access_token",
+          "refresh_token",
+          "expires_in",
+          "user_account_id",
+          "person_id"
+        ],
+        "title": "TokenResponse",
+        "description": "Payload returned upon successful authentication or token refresh."
+      },
+      "TombstoneDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "target_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Record Id"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At"
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "target_record_id",
+          "record_type",
+          "deleted_at"
+        ],
+        "title": "TombstoneDTO",
+        "description": "Server-side tombstone dispatched to clients to purge local cache."
+      },
+      "TombstoneItem": {
+        "properties": {
+          "target_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Target Record Id",
+            "description": "UUID of the health record being deleted."
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "Type of record deleted.",
+            "default": "health_record"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At",
+            "description": "UTC timestamp of the deletion action."
+          },
+          "device_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Record Id",
+            "description": "Optional local client device record ID corresponding to the deleted record."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "target_record_id",
+          "deleted_at"
+        ],
+        "title": "TombstoneItem",
+        "description": "Client-submitted deletion tombstone to propagate to canonical server."
+      },
+      "TrendDataPoint": {
+        "properties": {
+          "bucket_time": {
+            "type": "string",
+            "title": "Bucket Time"
+          },
+          "value": {
+            "type": "number",
+            "title": "Value"
+          },
+          "min_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Value"
+          },
+          "max_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Value"
+          },
+          "rolling_avg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rolling Avg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket_time",
+          "value"
+        ],
+        "title": "TrendDataPoint",
+        "description": "A single time-series bucket for chart rendering."
+      },
+      "UserProfileResponse": {
+        "properties": {
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "User account UUID."
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Account email."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Person profile UUID."
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name",
+            "description": "Display name."
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Role assigned."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Account creation timestamp."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_account_id",
+          "email",
+          "person_id",
+          "role",
+          "created_at"
+        ],
+        "title": "UserProfileResponse",
+        "description": "User profile response returning account and person metadata."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebAuthResponse": {
+        "properties": {
+          "user_account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Account Id",
+            "description": "Primary user account UUID."
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id",
+            "description": "Associated canonical person UUID."
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "description": "Token type header prefix.",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "Access token lifetime in seconds."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_account_id",
+          "person_id",
+          "expires_in"
+        ],
+        "title": "WebAuthResponse",
+        "description": "Payload returned upon successful Web authentication or token refresh.\n\nImplements OD-18: Access and refresh tokens are delivered exclusively via\nsecure HttpOnly cookies and are strictly omitted from the JSON response body."
+      },
+      "WorkoutDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "person_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Person Id"
+          },
+          "workout_type": {
+            "type": "string",
+            "title": "Workout Type"
+          },
+          "duration_minutes": {
+            "type": "number",
+            "title": "Duration Minutes"
+          },
+          "exercises": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Exercises"
+          },
+          "muscle_groups": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Muscle Groups"
+          },
+          "total_volume_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Volume Kg"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "person_id",
+          "workout_type",
+          "duration_minutes",
+          "created_at"
+        ],
+        "title": "WorkoutDTO",
+        "description": "Workout summary and muscle load analysis."
+      },
+      "WorkoutListResponse": {
+        "properties": {
+          "workouts": {
+            "items": {
+              "$ref": "#/components/schemas/WorkoutDTO"
+            },
+            "type": "array",
+            "title": "Workouts"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "WorkoutListResponse",
+        "description": "List of logged workout sessions."
       }
     }
   }

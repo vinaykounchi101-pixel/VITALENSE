@@ -10,10 +10,11 @@ Implements ARCH-002, ARCH-012, and ARCH-014:
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -56,7 +57,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         "VitalSense API starting up",
         extra={"environment": settings.ENVIRONMENT, "debug": settings.DEBUG},
     )
+
+    retention_task: Optional[asyncio.Task] = None
+    if settings.ENABLE_RETENTION_WORKER:
+        logger.warning(
+            "ENABLE_RETENTION_WORKER is active in API process lifespan. "
+            "In multi-worker/multi-pod production environments, run retention_worker "
+            "as a decoupled standalone cron/scheduled job instead to eliminate duplicate execution."
+        )
+        from services.workers.retention_worker import retention_worker_loop
+
+        retention_task = asyncio.create_task(retention_worker_loop())
+        logger.info("Background retention worker task initiated in lifespan.")
+
     yield
+
+    if retention_task:
+        logger.info("Cancelling background retention worker task...")
+        retention_task.cancel()
+        try:
+            await retention_task
+        except asyncio.CancelledError:
+            pass
+
     logger.info("VitalSense API shutting down, draining connections...")
     await close_database_connections()
     logger.info("VitalSense API shutdown complete.")

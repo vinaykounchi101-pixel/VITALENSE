@@ -18,6 +18,7 @@ from sqlalchemy import (
     Numeric,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -96,6 +97,14 @@ class SourceRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
             "idempotency_key",
             name="uq_source_records_idempotency",
         ),
+        Index(
+            "uq_source_records_device_id",
+            "person_id",
+            "source_name",
+            "source_record_id",
+            unique=True,
+            postgresql_where=text("source_record_id IS NOT NULL"),
+        ),
     )
 
     def __repr__(self) -> str:
@@ -173,6 +182,13 @@ class HealthRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         default="active",
         nullable=False,
     )
+    # Revision lineage pointing to the replacement revision (OD-04)
+    superseded_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("health_records.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     ingestion_timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=utc_now,
@@ -190,6 +206,11 @@ class HealthRecord(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source_receipt: Mapped[Optional[SourceRecord]] = relationship(
         "SourceRecord",
         back_populates="health_records",
+    )
+    superseding_record: Mapped[Optional[HealthRecord]] = relationship(
+        "HealthRecord",
+        remote_side="HealthRecord.id",
+        foreign_keys=[superseded_by_id],
     )
 
     __table_args__ = (

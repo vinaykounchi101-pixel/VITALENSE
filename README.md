@@ -1,54 +1,54 @@
 # VitalSense
 
-VitalSense is an advanced, privacy-conscious personal health and wellness platform designed to aggregate, normalize, and present authorized personal health records across mobile and web environments.
+VitalSense is an advanced, privacy-conscious personal health and wellness platform designed to aggregate, normalize, securely persist, and present authorized personal health records across mobile, desktop, and web environments.
 
 ---
 
 ## Current Status
 
-- **Roadmap Phase:** Phase 0 — Deployable Foundation Milestone
-- **Milestone:** Milestone 0.1 — Repository Scaffolding & Architecture Baseline (Task 1 Complete)
-- **Active Technical Baseline:** [VitalSense SRS v1.1.1 (Merged)](file:///e:/Projects/VITALENS/docs/VitalSense_SRS_v1.1.1_Merged.md)
-- **Active Product Baseline:** [VitalSense PRD v1.1](file:///e:/Projects/VITALENS/docs/VitalSense_PRD_v1.1.md)
-- **Decision Governance:** [Open Decision Register (OD-01 to OD-22)](file:///e:/Projects/VITALENS/docs/VitalSense_SRS_v1.1.1_Open_Decision_Register.md)
+- **Roadmap Phase:** Full-Scope Production Foundation Sprint
+- **Milestone:** Full-Scope Foundation (Complete — 75/75 Tests Passing)
+- **Active Technical Baseline:** [VitalSense SRS v1.1.1 (Merged)](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)
+- **Active Product Baseline:** [VitalSense PRD v1.1](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)
+- **Architecture Blueprint:** [System Architecture Blueprint](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)
+- **Approved Decisions:** [Consolidated ADR (ADR-001)](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)
+- **Decision Governance:** [Decision Register](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Open_Decision_Register.md)
+- **Sprint Final Report:** [docs/full_scope_sprint/FINAL_SPRINT_REPORT.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/FINAL_SPRINT_REPORT.md)
 
 ---
 
 ## Architectural Principles & Scope Boundaries
 
-1. **Client Separation:**
-   - **Web:** Next.js, React, TypeScript, Tailwind CSS (no direct database connections).
-   - **Mobile:** React Native with Expo, targeting Android and iOS with native health platform integrations (Apple HealthKit & Android Health Connect).
-2. **Backend & Domain Authority:**
-   - **APIs:** Python FastAPI with distinct client boundaries (`web-api` and `mobile-api`). Django is explicitly prohibited.
-   - **Database:** PostgreSQL is the authoritative, synchronized source of truth.
-   - **Local Storage:** Mobile-local storage (encrypted SQLite) functions as an offline viewing cache and durable operation sync queue, never as a competing source of truth.
-3. **Phased Capability Containment:**
-   - **Phase 0:** Deployable foundation, tooling, CI, database migrations, and synthetic sync proofs.
-   - **Phase 1:** Personal tracking, native health ingestion, dashboard/timeline, manual entry fallback, and privacy export/deletion controls.
-   - **Phase 2 (Gated):** AI daily intelligence and n8n/worker automation (requires explicit safety/cost gate approval).
-   - **Phase 3 (Gated):** Validated predictive ML (requires baseline comparison, leakage checks, and rollback controls).
-   - **Phase 4 (Gated):** Medical records and longitudinal intelligence (requires clinical safety and intended-use review).
-   - **Phase 5 (Gated):** Family health management (requires multi-person RBAC and guardian/caregiver consent models).
-4. **Health Data Ethics & Clinical Boundary:**
-   - Under general wellness scope, VitalSense does not diagnose disease, prescribe treatment, or make triage claims.
-   - Missing or delayed data must never be represented as measured zero or real-time measurements.
+1. **Five First-Class Target Platforms (OD-16):**
+   - **Android:** Kotlin, Jetpack Compose, Google Health Connect, Room with SQLCipher AES-256.
+   - **iOS:** Swift, SwiftUI, Apple HealthKit, SQLite with SQLCipher AES-256.
+   - **Windows:** Windows 10/11 desktop application, SQLite with SQLCipher AES-256, DPAPI.
+   - **macOS:** macOS 13+ desktop application, SQLite with SQLCipher AES-256, Keychain.
+   - **Web:** Next.js, React, TypeScript, Tailwind CSS, mobile-first responsive layout, IndexedDB with Web Crypto AES-GCM-256.
+2. **Backend & Domain Authority (OD-19):**
+   - **Modular Monolith API:** Python FastAPI with distinct routing boundaries (`/api/v1/web` and `/api/v1/mobile`) co-deployed initially with shared database connection pools.
+   - **Authoritative Database:** PostgreSQL 18 is the central authoritative source of truth.
+   - **Local Storage (OD-17):** Local client databases function as secure, encrypted offline viewing caches and durable sync queues, never as competing authorities.
+3. **Phase 1 Metric Scope (OD-01 Option B):**
+   - 10 approved core metrics: `steps`, `heart_rate`, `sleep_session`, `active_energy`, `workout_session`, `resting_heart_rate`, `blood_pressure_systolic`, `blood_pressure_diastolic` (paired measurements), `blood_oxygen_saturation` (SpO2), `blood_glucose`.
+   - **Data Integrity Rule:** Missing wearable or device data must display an honest empty state; **zero values are never fabricated**.
+4. **Offline Synchronization & Tombstones (OD-04, OD-14):**
+   - Immutable manual entries and revisions (`superseded_by_id`).
+   - Deletions propagate via dedicated `sync_tombstones`.
+   - Stale devices offline >30 days receive `SYNC_CURSOR_EXPIRED` and execute a safe, non-destructive resync that **never blindly wipes local databases**, preserving uncommitted offline drafts.
+5. **Defense-in-Depth Security & Automation Boundary (OD-18, OD-22):**
+   - Self-hosted Argon2id password hashing + rotating JWT refresh tokens with token-family reuse detection.
+   - n8n is strictly an external workflow orchestrator via authenticated webhooks. Zero direct PostgreSQL access; zero PHI sent to n8n.
+   - 30-day raw payload retention (`raw_payload = NULL` after 30 days) and 30-day backup snapshot expiry with restore reconciliation (`OD-07`).
 
 ---
 
 ## Prerequisites & Toolchain Compatibility
 
-The development environment was inspected on Windows with the following tools detected:
-- **Node.js:** `v24.19.0`
-- **npm:** `11.17.0` (Note: Run via `npm.cmd` under default Windows PowerShell execution policies)
-- **Python:** `3.14.5`
-- **Git:** `2.55.0`
-
-### Toolchain Recommendations & Compatibility Notes
-> [!IMPORTANT]
-> **Node.js Compatibility:** Node 24 is a bleeding-edge release. React Native, Expo SDKs, and Metro bundlers officially recommend and target **Node.js LTS (v20.x or v22.x)**. If native module build issues arise during mobile scaffolding, switching to Node 20/22 LTS via `nvm-windows` is recommended.
->
-> **Python Compatibility:** Python 3.14 is a pre-release / alpha branch. Core scientific Python libraries (NumPy, Pandas, scikit-learn) and binary C-extensions for FastAPI (e.g. `pydantic-core`, `greenlet`, `asyncpg`) do not yet ship pre-compiled Windows wheels for Python 3.14. For reliable dependency installation and local testing, **Python 3.11.x or 3.12.x** is recommended.
+- **Node.js:** Recommended LTS (v20.x or v22.x). Note: Run via `npm.cmd` under default Windows PowerShell execution policies.
+- **Python:** Python 3.12.x (installed in project `.venv`).
+- **PostgreSQL:** Version 18 (local service).
+- **Git:** 2.55.0+.
 
 ---
 
@@ -56,52 +56,85 @@ The development environment was inspected on Windows with the following tools de
 
 ```text
 vitalsense/
-├── apps/                               # Frontend applications
-│   ├── web/                            # Next.js web client (planned)
-│   └── mobile/                         # React Native / Expo mobile client (planned)
-├── services/                           # FastAPI backend services (planned)
-├── packages/                           # Shared cross-cutting libraries (contracts, types, python-common)
-├── database/                           # PostgreSQL migrations, schemas, seed fixtures
-├── ml/                                 # Isolated ML training, evaluation, and registry (Phase 3)
-├── automation/                         # n8n workflows and event contracts (Phase 2)
-├── infrastructure/                     # Docker, CI/CD, monitoring configurations
-├── tests/                              # Integration, contract, offline-sync, and security test suites
-├── docs/                               # Authoritative specifications (PRD v1.1, SRS v1.1.1, ADRs)
-├── prompts/                            # Antigravity sequential prompt archive
-├── .env.example                        # Template environment variables (placeholders only)
-├── .gitignore                          # Strict secret, database, and health data exclusions
-├── Makefile                            # Common developer commands
-├── package.json                        # Root workspace configuration
-└── pyproject.toml                      # Python tooling configuration (Ruff, Mypy, Pytest)
+├── apps/                               # First-class client applications (OD-16)
+│   ├── mobile/                         # React Native + Expo (Android Health Connect & iOS HealthKit)
+│   ├── desktop-windows/                # Windows desktop client (Tauri / Rust / DPAPI / SQLCipher)
+│   ├── desktop-macos/                  # macOS desktop client (Tauri / Rust / Keychain / SQLCipher)
+│   └── web/                            # Web application (Next.js 14 / IndexedDB + Web Crypto)
+├── database/                           # Database migrations, configurations, and test fixtures
+│   ├── fixtures/
+│   │   └── synthetic_records.json
+│   └── postgres/
+│       ├── alembic.ini
+│       └── migrations/                 # Versioned migration scripts (001 through 006)
+├── infrastructure/                     # Deployment & containerization
+│   └── docker/                         # Dockerfile.api, Dockerfile.web, nginx.conf
+├── docs/                               # Specifications, PRD, SRS, validation reports, and decisions
+│   ├── architecture/
+│   │   ├── approved_decisions_record.md
+│   │   ├── system_architecture.md
+│   │   └── decision_workshop.md
+│   ├── milestone_07_core_authentication_ingestion_sync_implementation_report.md
+│   ├── milestone_07_1_security_sync_hardening_report.md
+│   ├── milestone_07_1_1_auth_retention_corrections_report.md
+│   ├── milestone_07_1_2_sync_integrity_verification_report.md
+│   ├── VitalSense_PRD_v1.1.md
+│   ├── VitalSense_SRS_v1.1.1_Merged.md
+│   └── VitalSense_SRS_v1.1.1_Open_Decision_Register.md
+├── infrastructure/                     # Infrastructure as Code (Docker, Nginx)
+├── packages/                           # Shared cross-cutting libraries
+│   ├── api-contracts/                  # Versioned OpenAPI specifications (openapi/v1.json)
+│   └── python-common/                  # Shared Python library (vitalsense_common)
+│       └── src/vitalsense_common/
+│           ├── models/                 # Domain models (auth, sync, metric, health, account)
+│           ├── schemas/                # Pydantic schemas (auth, sync, envelope, health)
+│           ├── security/               # Argon2id password hashing, JWT tokens
+│           ├── config.py               # Typed environment settings
+│           ├── database.py             # Engine & session management
+│           └── logging.py              # Structured JSON logging & PHI redaction
+├── prompts/                            # Immutable archive of all milestone prompts
+├── services/                           # Backend domain services & API routers
+│   ├── api/                            # FastAPI modular monolith application (main.py)
+│   ├── auth/                           # Authentication & session domain service
+│   ├── sync/                           # Health data ingestion & cross-platform sync service
+│   ├── mobile_api/                     # Mobile API router namespace (/api/v1/mobile)
+│   ├── web_api/                        # Web API router namespace (/api/v1/web)
+│   └── workers/                        # Background operations & retention workers
+└── tests/                              # Automated test suite (60 passing tests)
 ```
 
 ---
 
-## Local Setup Guidance
+## Getting Started
 
-### 1. Environment Configuration
-Copy the provided template to configure local variables:
+### 1. Environment Setup
 ```bash
-# In PowerShell:
-Copy-Item .env.example .env
+# Clone the repository
+git clone https://github.com/vinaykounchi101-pixel/VITALENSE.git
+cd VITALSENSE
+
+# Activate Python 3.12 virtual environment
+.\.venv\Scripts\activate
+
+# Install backend dependencies
+pip install -r requirements.txt
+pip install -e packages/python-common --no-deps
 ```
-*Note: Never edit `.env` to include production secrets or commit `.env` to source control.*
 
-### 2. Implemented vs. Planned Functionality
-- **Currently Implemented (Milestone 0.1):**
-  - Root monorepo workspace configurations ([package.json](file:///e:/Projects/VITALENS/package.json), [pyproject.toml](file:///e:/Projects/VITALENS/pyproject.toml)).
-  - Comprehensive ignore rules ([.gitignore](file:///e:/Projects/VITALENS/.gitignore)).
-  - Environment variable documentation ([.env.example](file:///e:/Projects/VITALENS/.env.example)).
-  - Developer automation scripts ([Makefile](file:///e:/Projects/VITALENS/Makefile)).
-  - Full technical specifications and PRD baseline ([docs/](file:///e:/Projects/VITALENS/docs)).
-- **Planned for Next Milestones:**
-  - Milestone 0.2: FastAPI backend skeleton with OpenAPI contract generation and PostgreSQL Alembic migrations.
-  - Milestone 0.3: Next.js and Expo client skeletons with synthetic local SQLite sync proof.
+### 2. Database Migrations
+```bash
+# Apply migrations to canonical PostgreSQL instance
+alembic upgrade head
+```
 
----
+### 3. Run Automated Tests
+```bash
+# Run the 60-test unit, integration, and contract test suite
+pytest -v
+```
 
-## Quality & Security Guidelines
-
-- **No Secrets in Source Control:** `.env` files, certificates, credentials, and API keys are strictly excluded via `.gitignore`.
-- **No Real Health Data in Repositories:** All testing and development must use de-identified, synthetic fixtures.
-- **Authoritative Backend Validation:** Server-side validation is authoritative across all API boundaries (`web-api` and `mobile-api`).
+### 4. Start Local Development API Server
+```bash
+uvicorn services.api.main:app --host 0.0.0.0 --port 8000 --reload
+```
+Interactive OpenAPI documentation will be accessible at: `http://localhost:8000/docs`

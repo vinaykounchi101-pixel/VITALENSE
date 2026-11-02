@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "VitalSense",
+    "slug": "vitalsense",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0B0F17"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.vitalsense.app",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "VitalSense securely synchronizes your health observations for trend forecasting and recovery insights.",
+        "NSHealthUpdateUsageDescription": "VitalSense logs workouts and health metrics to Apple Health."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B0F17"
+      },
+      "package": "com.vitalsense.app",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_SLEEP",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_RESTING_HEART_RATE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_OXYGEN_SATURATION",
+        "android.permission.health.READ_BLOOD_GLUCOSE"
+      ]
+    },
+    "plugins": [
+      [
+        "react-native-health-connect",
+        {
+          "rationale": "VitalSense needs access to Health Connect to analyze your daily activity, heart rate, and sleep recovery trends."
+        }
+      ]
+    ]
+  }
+}
+

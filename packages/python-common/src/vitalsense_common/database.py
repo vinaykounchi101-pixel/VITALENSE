@@ -4,11 +4,13 @@ Implements DATA-004, DATA-007, and ARCH-004:
 - Central PostgreSQL as single authoritative server-side store
 - Transaction boundaries with automatic rollback on error
 - Safe health check probing without leaking internal credentials or stack traces
+- Robust connection pool lifecycle management
 """
 
 from __future__ import annotations
 
 import logging
+import os
 from typing import AsyncGenerator, Optional
 
 from sqlalchemy import text
@@ -18,6 +20,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from vitalsense_common.config import settings
 from vitalsense_common.logging import logger
@@ -30,12 +33,19 @@ def get_engine() -> AsyncEngine:
     """Retrieve or initialize the SQLAlchemy async database engine."""
     global _engine
     if _engine is None:
+        engine_kwargs = {
+            "echo": settings.DEBUG and settings.ENVIRONMENT == "development",
+            "pool_pre_ping": True,
+        }
+        if settings.ENVIRONMENT == "test" or "PYTEST_CURRENT_TEST" in os.environ:
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs["pool_size"] = settings.POSTGRES_POOL_SIZE
+            engine_kwargs["max_overflow"] = settings.POSTGRES_MAX_OVERFLOW
+
         _engine = create_async_engine(
             settings.DATABASE_URL,
-            echo=settings.DEBUG and settings.ENVIRONMENT == "development",
-            pool_size=settings.POSTGRES_POOL_SIZE,
-            max_overflow=settings.POSTGRES_MAX_OVERFLOW,
-            pool_pre_ping=True,
+            **engine_kwargs,
         )
     return _engine
 

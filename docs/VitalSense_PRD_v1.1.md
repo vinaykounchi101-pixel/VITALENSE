@@ -113,7 +113,7 @@ Family management is not an initial-release feature; it is a planned future capa
 
 ### 6.1 Product goals
 
-- Support both iOS and Android.
+- Support five first-class platforms in parallel: Android, iOS, Windows, macOS, and Web (OD-16).
 - Reduce manual work by importing health data from supported platform integrations and compatible sources.
 - Provide a unified personal health and wellness dashboard.
 - Show historical records, trends, and progress toward user-defined goals.
@@ -685,23 +685,25 @@ Open decisions are not automatically defects. They become delivery blockers when
 
 ### 14.2 Open decision register
 
-| ID | Decision required | Why it matters / evidence needed | Owner | Resolve by |
+*Note: Decisions OD-01, OD-03, OD-04, OD-07, and OD-14 (along with architecture decisions OD-16, OD-17, OD-18, OD-19, and OD-22 in the SRS) were formally APPROVED by the Product Owner in Milestones 0.5.3 / 0.6. The remaining decisions remain open for subsequent phase gates.*
+
+| ID | Decision required | Status & Resolution | Owner | Resolve by |
 |---|---|---|---|---|
-| OD-01 | Final first-release metric categories and source integrations | Compare platform/API availability, permissions, history, reliability, testing effort, user value, and cost on iOS and Android. | Product owner, with engineering/platform feasibility input | Before Phase 1 scope is frozen and before implementation estimates are treated as final |
-| OD-02 | Priority trade-off if not all candidate metrics fit Phase 1 | Validate the primary launch job and highest-value first-release workflow; use discovery/testing rather than inventing a demographic or need. | Product owner; user research evidence where feasible | Phase 0, before Phase 1 scope freeze |
-| OD-03 | Meaning of “first deployable milestone” in the chosen deployment environment | Define what must be deployable and demonstrable, and how the foundation is accepted. | Product owner and engineering | Phase 0, before foundation acceptance |
-| OD-04 | Exact manual-entry categories in Phase 1 | Determine which categories are necessary when automatic collection is unavailable, and the expected correction behavior. | Product owner with design/engineering input | Before Phase 1 scope freeze |
-| OD-05 | Whether interactive AI chat is included in the first AI release or a later phase | Requires user-value, safety, privacy, and cost assessment. | Product owner with AI/engineering and privacy input | Before Phase 2 scope freeze |
-| OD-06 | Initial document-import formats and extraction capabilities | Assess likely documents, extraction quality, user correction, provenance, privacy, and failure handling. | Product owner with engineering and future clinical/privacy reviewers | Before document import is scoped for implementation; no later than Phase 4 discovery |
-| OD-07 | Data lifecycle policy: retention, export, deletion, derived outputs, and backups | Define user expectations, technical feasibility, and applicable obligations; test behavior after policy approval. | Product owner with engineering and privacy/legal review as applicable | Before promising data controls in a release; before any release that offers export/deletion |
-| OD-08 | Final product name, visual identity, and brand availability | Brand and naming decision. | Product owner | Before public branding/launch |
-| OD-09 | Monetization model: fully free, freemium, or undecided | Assess cost sustainability and user expectations; free-tier-first remains a constraint, not a guarantee. | Product owner | Before committing to ongoing service costs or public pricing claims |
-| OD-10 | Success-measure definitions and numeric targets | Establish baselines, measurement windows, instrumentation, privacy review, and evidence-based target-setting. | Product owner with analytics/QA input | Definitions before relevant measurement ships; targets after baseline testing and before success evaluation |
-| OD-11 | Forecast readiness and acceptance thresholds per use case | Requires target definition, suitable data, baseline comparison, evaluation, uncertainty, and monitoring evidence; do not use invented thresholds. | Product owner with ML/QA review | Before each forecast is approved for Phase 3 release |
-| OD-12 | Medical intended use, validation approach, review roles, and boundaries for concerning-pattern flags | Requires data-quality plan, validation, clinical safety review, user-facing limitations, regulatory assessment where applicable, and explicit approval. | Product owner with appropriate clinical/medical, privacy, engineering, and regulatory expertise | During Phase 4 discovery and before any medical capability is released |
-| OD-13 | Family authorization model, caregiver roles, minors, consent, and revocation | Must define who can view or manage which person's records and how access is granted/revoked. | Product owner with privacy/legal review as applicable | During Phase 5 discovery and before family functionality is released |
-| OD-14 | Export formats and sharing pathways for reports/medical summaries | Assess user needs, privacy, supported formats, and risks of stale or misunderstood information. | Product owner with design/engineering and relevant reviewers | Before the relevant report/export feature is scoped for release |
-| OD-15 | Whether a user-facing workflow history/status view is needed | Validate whether status messages and recovery actions alone are sufficient or users need a broader history. | Product owner with user feedback/design input | During Phase 1/2 usability review, before adding as committed scope |
+| OD-01 | Final first-release metric categories and source integrations | **RESOLVED (Approved Option B):** 10 metrics: steps, heart_rate, sleep_session, active_energy, workout_session, resting_heart_rate, blood_pressure_systolic, blood_pressure_diastolic, blood_oxygen_saturation, blood_glucose. Paired BP required. Weight tracked separately. | Product owner | Milestone 0.6 (Completed) |
+| OD-02 | Priority trade-off if not all candidate metrics fit Phase 1 | **Open:** Validate the primary launch job and highest-value first-release workflow; honest empty states enforced. | Product owner; user research | Phase 1 scope freeze |
+| OD-03 | Meaning of “first deployable milestone” in the chosen deployment environment | **RESOLVED (Approved 4-Pillar Gate):** Foundation, data pipeline, cross-platform, and release readiness. Verifiable automated test, migration, and drift evidence. | Product owner and engineering | Milestone 0.6 (Completed) |
+| OD-04 | Exact manual-entry categories in Phase 1 | **RESOLVED (Approved Option A):** Controlled manual entry for approved metrics with immutable revisions (`superseded_by_id`), preserved timestamps, and deletion tombstones. | Product owner with design/engineering | Milestone 0.6 (Completed) |
+| OD-05 | Whether interactive AI chat is included in the first AI release or a later phase | **Open:** Requires user-value, safety, privacy, and cost assessment. | Product owner with AI/engineering | Before Phase 2 scope freeze |
+| OD-06 | Initial document-import formats and extraction capabilities | **Open:** Assess likely documents, extraction quality, user correction, provenance, privacy, and failure handling. | Product owner with clinical/privacy reviewers | Before Phase 4 discovery |
+| OD-07 | Data lifecycle policy: retention, export, deletion, derived outputs, and backups | **RESOLVED (Approved Option A with Safeguards):** 30-day raw payload expiry, 14-day logs, 30-day deletion grace, 30-day backup snapshot expiry with restore reconciliation. | Product owner with engineering/privacy | Milestone 0.6 (Completed) |
+| OD-08 | Final product name, visual identity, and brand availability | **Open:** Retain provisional VitalSense until trademark review. | Product owner | Before public launch |
+| OD-09 | Monetization model: fully free, freemium, or undecided | **Open:** Free-tier-first remains a constraint, not a guarantee. | Product owner | Before committing to commercial costs |
+| OD-10 | Success-measure definitions and numeric targets | **Open:** Approve candidate NFR ranges based on representative testing. | Product owner with analytics/QA | Before production release |
+| OD-11 | Forecast readiness and acceptance thresholds per use case | **Open:** Requires target definition, baseline comparison, and slice analysis. | Product owner with ML/QA review | Before Phase 3 forecast release |
+| OD-12 | Medical intended use, validation approach, review roles, and boundaries | **Open:** General wellness scope for Phases 0–3; clinical/regulatory review before Phase 4. | Product owner with medical/regulatory | Before Phase 4 release |
+| OD-13 | Family authorization model, caregiver roles, minors, consent, and revocation | **Open:** Default-deny cross-person access until multi-person consent is approved. | Product owner with privacy/legal | Before Phase 5 release |
+| OD-14 | Export formats and sharing pathways for reports/medical summaries | **RESOLVED (Approved Option A with Safeguards):** Sync tombstones, per-device cursors, `SYNC_CURSOR_EXPIRED`, non-destructive reconciliation preserving pending drafts. | Product owner with design/engineering | Milestone 0.6 (Completed) |
+| OD-15 | Whether a user-facing workflow history/status view is needed | **Open:** Expose status screen (`pending`, `completed`, `failed`) for privacy requests. | Product owner with user feedback | Before Phase 1 privacy UI release |
 
 ### 14.3 Assumptions to validate
 
