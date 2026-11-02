@@ -11,6 +11,12 @@ from vitalsense_common.models.auth import (
     AuthRefreshToken,
 )
 from vitalsense_common.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, utc_now
+from vitalsense_common.models.extended import (
+    DailyInsight,
+    ExternalImport,
+    MedicalRecord,
+    WorkoutDetail,
+)
 from vitalsense_common.models.health_record import HealthRecord, SourceRecord
 from vitalsense_common.models.metric import MetricDefinition
 from vitalsense_common.models.sync import ClientSyncCursor, SyncTombstone
@@ -31,4 +37,8 @@ __all__ = [
     "AuthPasswordResetToken",
     "SyncTombstone",
     "ClientSyncCursor",
+    "DailyInsight",
+    "MedicalRecord",
+    "WorkoutDetail",
+    "ExternalImport",
 ]
