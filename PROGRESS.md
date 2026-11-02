@@ -4,7 +4,7 @@
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
 **Architecture Blueprint:** [system_architecture.md](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)  
 **Approved Decisions:** [approved_decisions_record.md](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)  
-**Current Branch:** `dev`  
+**Current Branch:** `stabilization/security-integrity-verification`  
 **Repository:** [github.com/vinaykounchi101-pixel/VITALENSE](https://github.com/vinaykounchi101-pixel/VITALENSE)  
 
 ---
@@ -276,22 +276,59 @@
   - Authored comprehensive final sprint report in `docs/full_scope_sprint/FINAL_SPRINT_REPORT.md`.
   - Updated `PROGRESS.md`, `TECHNICAL.md`, and `README.md`.
 
+### Milestone 0.9 — Stabilization & Verification Sprint
+- [x] **Starting Baseline & Branch**:
+  - Verified starting state from `dev` HEAD (`611a721` merge commit and `d8db2d7` tracking commit).
+  - Created working branch `stabilization/security-integrity-verification`.
+  - Archived execution prompt in `prompts/019_stabilization_and_verification_sprint.md`.
+- [x] **Priority 0 — Permanent Data Integrity & Replay Protection**:
+  - Verified partial unique index `uq_source_records_device_id` on `source_records(person_id, source_name, source_record_id) WHERE source_record_id IS NOT NULL`.
+  - Added 2 new integration tests in `tests/test_permanent_replay_protection.py` verifying immediate sequential duplicate retry suppression and mid-batch transaction failure rollback with clean subsequent retry (12/12 integration tests passing).
+- [x] **Priority 1 — Real Encrypted Mobile Storage & Token Security**:
+  - Replaced in-memory map placeholder in `apps/mobile/src/services/storage/sqlcipher.ts` with real persistent encrypted SQLite storage (`MobileEncryptedStorage`) using `expo-sqlite`, `expo-crypto`, and `expo-secure-store`.
+  - Configured 256-bit AES SQLCipher encryption via `PRAGMA key`, `PRAGMA cipher_compatibility = 4`, and `PRAGMA foreign_keys = ON`.
+  - Implemented hardware-backed encryption key derivation (Android Keystore via AES-256 GCM encrypted shared preferences, iOS Keychain via `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`).
+  - Enforced per-user database isolation (`vitalsense_${userId}_encrypted.db`) and unmount/erasure lifecycle on logout.
+  - Implemented `SecureTokenStorage` in `apps/mobile/src/services/storage/secureTokens.ts` using `expo-secure-store` for `access_token`, `refresh_token`, and session states.
+- [x] **Priority 1 — Real Health Platform Adapters**:
+  - Replaced hardcoded simulation flags in `apps/mobile/src/services/health/HealthConnectAdapter.ts` and `HealthKitAdapter.ts` with genuine SDK availability, permission inspection, and granular record readers for Steps, Heart Rate, Sleep, Active Energy, and Blood Pressure.
+  - Enforced strict zero-fabrication: ungranted permissions or missing sensor readings return honest empty arrays.
+  - Verified clean TypeScript compilation: `npx tsc --project apps/mobile/tsconfig.json` exited with code 0.
+- [x] **Priority 1 — Docker & Deployment Correctness**:
+  - Corrected `infrastructure/docker/Dockerfile.api` entrypoint to `services.api.main:app` and healthcheck to `/health`.
+  - Corrected `docker-compose.yml` to call `services.api.main:app`, added API healthchecks, and removed hardcoded fallback secrets in favor of mandatory environment variables.
+  - Updated `infrastructure/docker/nginx.conf` with dedicated `/health` and `/ready` operational probe routing.
+- [x] **Priority 1 — Comprehensive Privacy Export & Cascading Purge**:
+  - Expanded `PrivacyService.export_all_data` to output a structured manifest with version, timestamps, category counts, and exports covering all 8 domain entities: account metadata (strictly zero password hashes or tokens), persons, health records, source records, medical records, workouts, daily insights, external imports, sync tombstones, and audit events.
+  - Updated `PrivacyService.delete_account_permanently` with explicit, irreversible deletion across all 8 relational tables and creation of an anonymized regulatory audit tombstone (`actor_id = None`).
+  - Added exhaustive integration test in `tests/test_integrations_and_privacy.py` verifying manifest schema and cross-table erasure.
+- [x] **Priority 2 — Desktop Foundations Verification**:
+  - Inspected Windows and macOS Tauri architectures in `apps/desktop-windows` and `apps/desktop-macos`.
+  - Verified DPAPI (`dpapi.rs`), Keychain (`keychain.rs`), and SQLCipher configurations.
+  - Documented build prerequisites (Rust / Cargo / Xcode toolchain) and local host constraints honestly.
+- [x] **Priority 2 — Documentation & Verification Reconciliation**:
+  - Authored `docs/stabilization/FINAL_STABILIZATION_REPORT.md` (all 17 required sections).
+  - Authored `docs/stabilization/FEATURE_VERIFICATION_MATRIX.md`.
+  - Updated `README.md` to remove obsolete Kotlin/Swift references in favor of React Native + Expo.
+  - Full test suite: **77/77 tests PASSED** (100% pass rate).
+  - OpenAPI 3.1.0 contract verified with **0 drift**.
+  - Production Web build (`npm run build` in `apps/web`) verified with **0 errors**.
+
 ---
 
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
-- **Development Branch:** `dev` (active working branch, consolidated at commit `611a721`)
-- **Status:** All feature and milestone branches merged into `dev` and cleanly retired
-- **Branch Policy:** All development consolidated on `dev`; releases promoted to `main`
+- **Development Branch:** `dev` (consolidated at commit `611a721` / `d8db2d7`)
+- **Active Working Branch:** `stabilization/security-integrity-verification`
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---
 
 ## 3. Verification Summary
-- **Backend Tests:** 75 / 75 PASSED (100% pass rate)
-- **OpenAPI Drift:** 0 drift detected
-- **Web App Build:** Next.js 14 production build PASSED
-- **Mobile App Types:** TypeScript compilation PASSED
+- **Backend Tests:** 77 / 77 PASSED (100% pass rate across 16 test modules in 45.39s)
+- **OpenAPI Drift:** 0 drift detected (`packages/api-contracts/openapi/v1.json`)
+- **Web App Build:** Next.js 14 production build PASSED (5 static routes, 0 errors)
+- **Mobile App Types:** TypeScript compilation PASSED (`npx tsc --project apps/mobile/tsconfig.json` exited with code 0)
 - **Database Schema:** Alembic migrations applied cleanly to head (`006_extended_domain`)
-- **Security & Privacy:** Mandatory medical disclaimers, zero data fabrication, full GDPR Art. 17/20 adherence.
+- **Security & Privacy:** Mandatory medical disclaimers, zero data fabrication, full GDPR Art. 17/20 adherence with structured manifest.

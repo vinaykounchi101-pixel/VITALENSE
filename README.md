@@ -6,27 +6,27 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
 
 ## Current Status
 
-- **Roadmap Phase:** Full-Scope Production Foundation Sprint
-- **Milestone:** Full-Scope Foundation (Complete — 75/75 Tests Passing)
+- **Roadmap Phase:** Stabilization & Verification Sprint
+- **Milestone:** Stabilization & Security Hardening (Complete — 77/77 Tests Passing)
 - **Active Technical Baseline:** [VitalSense SRS v1.1.1 (Merged)](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)
 - **Active Product Baseline:** [VitalSense PRD v1.1](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)
 - **Architecture Blueprint:** [System Architecture Blueprint](file:///e:/Projects/VITALSENSE/docs/architecture/system_architecture.md)
 - **Approved Decisions:** [Consolidated ADR (ADR-001)](file:///e:/Projects/VITALSENSE/docs/architecture/approved_decisions_record.md)
 - **Decision Governance:** [Decision Register](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Open_Decision_Register.md)
-- **Sprint Final Report:** [docs/full_scope_sprint/FINAL_SPRINT_REPORT.md](file:///e:/Projects/VITALSENSE/docs/full_scope_sprint/FINAL_SPRINT_REPORT.md)
+- **Stabilization Final Report:** [docs/stabilization/FINAL_STABILIZATION_REPORT.md](file:///e:/Projects/VITALSENSE/docs/stabilization/FINAL_STABILIZATION_REPORT.md)
+- **Feature Verification Matrix:** [docs/stabilization/FEATURE_VERIFICATION_MATRIX.md](file:///e:/Projects/VITALSENSE/docs/stabilization/FEATURE_VERIFICATION_MATRIX.md)
 
 ---
 
 ## Architectural Principles & Scope Boundaries
 
 1. **Five First-Class Target Platforms (OD-16):**
-   - **Android:** Kotlin, Jetpack Compose, Google Health Connect, Room with SQLCipher AES-256.
-   - **iOS:** Swift, SwiftUI, Apple HealthKit, SQLite with SQLCipher AES-256.
-   - **Windows:** Windows 10/11 desktop application, SQLite with SQLCipher AES-256, DPAPI.
-   - **macOS:** macOS 13+ desktop application, SQLite with SQLCipher AES-256, Keychain.
-   - **Web:** Next.js, React, TypeScript, Tailwind CSS, mobile-first responsive layout, IndexedDB with Web Crypto AES-GCM-256.
+   - **Mobile (Android & iOS):** React Native + Expo with native Google Health Connect and Apple HealthKit integration modules; encrypted local storage via SQLCipher AES-256 with hardware-backed key derivation (Android Keystore / iOS Keychain via Expo SecureStore).
+   - **Windows:** Windows 10/11 desktop application, Tauri / Rust, SQLite with SQLCipher AES-256, DPAPI credential protection.
+   - **macOS:** macOS 13+ desktop application, Tauri / Rust, SQLite with SQLCipher AES-256, Apple Keychain credential protection.
+   - **Web:** Next.js 14, React 18, TypeScript, Tailwind CSS, mobile-first responsive layout, IndexedDB with Web Crypto AES-GCM-256.
 2. **Backend & Domain Authority (OD-19):**
-   - **Modular Monolith API:** Python FastAPI with distinct routing boundaries (`/api/v1/web` and `/api/v1/mobile`) co-deployed initially with shared database connection pools.
+   - **Modular Monolith API:** Python FastAPI with distinct routing boundaries (`/api/v1/web` and `/api/v1/mobile`) co-deployed with shared database connection pools.
    - **Authoritative Database:** PostgreSQL 18 is the central authoritative source of truth.
    - **Local Storage (OD-17):** Local client databases function as secure, encrypted offline viewing caches and durable sync queues, never as competing authorities.
 3. **Phase 1 Metric Scope (OD-01 Option B):**
@@ -36,8 +36,11 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
    - Immutable manual entries and revisions (`superseded_by_id`).
    - Deletions propagate via dedicated `sync_tombstones`.
    - Stale devices offline >30 days receive `SYNC_CURSOR_EXPIRED` and execute a safe, non-destructive resync that **never blindly wipes local databases**, preserving uncommitted offline drafts.
-5. **Defense-in-Depth Security & Automation Boundary (OD-18, OD-22):**
+   - Partial unique index on `(person_id, source_name, source_record_id)` with transactional savepoint recovery for concurrent replay protection.
+5. **Defense-in-Depth Security & Privacy Controls (OD-18, OD-22):**
    - Self-hosted Argon2id password hashing + rotating JWT refresh tokens with token-family reuse detection.
+   - Single-use, database-backed password reset tokens.
+   - Comprehensive GDPR Art. 17 (Right to Erasure) cascading deletion across all 8 relational tables and Art. 20 (Data Portability) structured JSON export with category manifest.
    - n8n is strictly an external workflow orchestrator via authenticated webhooks. Zero direct PostgreSQL access; zero PHI sent to n8n.
    - 30-day raw payload retention (`raw_payload = NULL` after 30 days) and 30-day backup snapshot expiry with restore reconciliation (`OD-07`).
 
@@ -57,7 +60,7 @@ VitalSense is an advanced, privacy-conscious personal health and wellness platfo
 ```text
 vitalsense/
 ├── apps/                               # First-class client applications (OD-16)
-│   ├── mobile/                         # React Native + Expo (Android Health Connect & iOS HealthKit)
+│   ├── mobile/                         # React Native + Expo (Android Health Connect & iOS HealthKit, SQLCipher)
 │   ├── desktop-windows/                # Windows desktop client (Tauri / Rust / DPAPI / SQLCipher)
 │   ├── desktop-macos/                  # macOS desktop client (Tauri / Rust / Keychain / SQLCipher)
 │   └── web/                            # Web application (Next.js 14 / IndexedDB + Web Crypto)
@@ -74,6 +77,10 @@ vitalsense/
 │   │   ├── approved_decisions_record.md
 │   │   ├── system_architecture.md
 │   │   └── decision_workshop.md
+│   ├── stabilization/                  # Stabilization Sprint reports & verification matrix
+│   │   ├── FINAL_STABILIZATION_REPORT.md
+│   │   └── FEATURE_VERIFICATION_MATRIX.md
+│   ├── full_scope_sprint/
 │   ├── milestone_07_core_authentication_ingestion_sync_implementation_report.md
 │   ├── milestone_07_1_security_sync_hardening_report.md
 │   ├── milestone_07_1_1_auth_retention_corrections_report.md
@@ -81,26 +88,32 @@ vitalsense/
 │   ├── VitalSense_PRD_v1.1.md
 │   ├── VitalSense_SRS_v1.1.1_Merged.md
 │   └── VitalSense_SRS_v1.1.1_Open_Decision_Register.md
-├── infrastructure/                     # Infrastructure as Code (Docker, Nginx)
 ├── packages/                           # Shared cross-cutting libraries
 │   ├── api-contracts/                  # Versioned OpenAPI specifications (openapi/v1.json)
 │   └── python-common/                  # Shared Python library (vitalsense_common)
 │       └── src/vitalsense_common/
-│           ├── models/                 # Domain models (auth, sync, metric, health, account)
-│           ├── schemas/                # Pydantic schemas (auth, sync, envelope, health)
-│           ├── security/               # Argon2id password hashing, JWT tokens
+│           ├── models/                 # Domain models (auth, sync, metric, health, account, extended)
+│           ├── schemas/                # Pydantic schemas (auth, sync, envelope, health, privacy, extended)
+│           ├── security/               # Argon2id password hashing, JWT tokens, reset lifecycle
 │           ├── config.py               # Typed environment settings
 │           ├── database.py             # Engine & session management
 │           └── logging.py              # Structured JSON logging & PHI redaction
-├── prompts/                            # Immutable archive of all milestone prompts
+├── prompts/                            # Immutable archive of all milestone prompts (001 - 019)
 ├── services/                           # Backend domain services & API routers
 │   ├── api/                            # FastAPI modular monolith application (main.py)
 │   ├── auth/                           # Authentication & session domain service
 │   ├── sync/                           # Health data ingestion & cross-platform sync service
+│   ├── privacy/                        # GDPR data export & cascading account purge
+│   ├── analytics/                      # 10-metric aggregation & 0-100 recovery score
+│   ├── intelligence/                   # Gemini AI briefings & ML linear trend forecasting
+│   ├── integrations/                   # Health archive file parsing (CSV, XML, JSON)
+│   ├── medical/                        # Clinical documents & lab result management
+│   ├── fitness/                        # Workout session tracking & exercise logs
+│   ├── family/                         # Multi-person profile boundaries
 │   ├── mobile_api/                     # Mobile API router namespace (/api/v1/mobile)
 │   ├── web_api/                        # Web API router namespace (/api/v1/web)
 │   └── workers/                        # Background operations & retention workers
-└── tests/                              # Automated test suite (60 passing tests)
+└── tests/                              # Automated test suite (77 passing tests)
 ```
 
 ---
@@ -124,12 +137,12 @@ pip install -e packages/python-common --no-deps
 ### 2. Database Migrations
 ```bash
 # Apply migrations to canonical PostgreSQL instance
-alembic upgrade head
+python -m alembic -c database/postgres/alembic.ini upgrade head
 ```
 
 ### 3. Run Automated Tests
 ```bash
-# Run the 60-test unit, integration, and contract test suite
+# Run the 77-test unit, integration, and contract test suite
 pytest -v
 ```
 
@@ -138,3 +151,4 @@ pytest -v
 uvicorn services.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 Interactive OpenAPI documentation will be accessible at: `http://localhost:8000/docs`
+Operational probes: `http://localhost:8000/health` (liveness), `http://localhost:8000/ready` (readiness).

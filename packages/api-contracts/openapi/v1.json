@@ -2451,6 +2451,21 @@
             "title": "Format Version",
             "default": "1.0"
           },
+          "manifest": {
+            "type": "object",
+            "title": "Manifest"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
           "person_profiles": {
             "items": {
               "type": "object"
@@ -2465,12 +2480,54 @@
             "type": "array",
             "title": "Records"
           },
+          "source_records": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Source Records"
+          },
+          "medical_records": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Medical Records"
+          },
+          "workouts": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Workouts"
+          },
+          "daily_insights": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Daily Insights"
+          },
+          "external_imports": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "External Imports"
+          },
           "tombstones": {
             "items": {
               "type": "object"
             },
             "type": "array",
             "title": "Tombstones"
+          },
+          "audit_events": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Audit Events"
           },
           "total_records": {
             "type": "integer",

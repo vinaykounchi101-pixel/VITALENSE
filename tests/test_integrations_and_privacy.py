@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 import uuid
 import zipfile
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -16,9 +16,13 @@ from services.api.main import app
 from services.auth.service import AuthService
 from services.sync.service import SyncService
 from vitalsense_common.database import get_engine
-from vitalsense_common.models.account import UserAccount
+from vitalsense_common.models.account import Person, UserAccount
+from vitalsense_common.models.audit import AuditEvent
+from vitalsense_common.models.auth import AuthCredential
 from vitalsense_common.models.base import utc_now
-from vitalsense_common.models.health_record import HealthRecord
+from vitalsense_common.models.extended import DailyInsight, MedicalRecord, WorkoutDetail
+from vitalsense_common.models.health_record import HealthRecord, SourceRecord
+from vitalsense_common.models.sync import SyncTombstone
 from vitalsense_common.schemas.auth import RegisterRequest
 from vitalsense_common.schemas.sync import BatchSyncRequest, ObservationItem
 
@@ -78,13 +82,14 @@ async def test_csv_and_apple_health_xml_import() -> None:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_privacy_export_and_cascading_deletion() -> None:
-    """Verify GDPR data export and complete cascading account erasure."""
+    """Verify GDPR data export across all 8 domain entities and complete cascading account erasure."""
     engine = get_engine()
+    test_email = f"privacy_{uuid.uuid4().hex[:8]}@example.com"
     async with AsyncSession(engine) as session:
         reg = await AuthService.register_user(
             session,
             RegisterRequest(
-                email=f"privacy_{uuid.uuid4().hex[:8]}@example.com",
+                email=test_email,
                 password="SecurePassword123!",
             ),
         )
@@ -92,32 +97,93 @@ async def test_privacy_export_and_cascading_deletion() -> None:
         user_id = reg.user_account_id
         await session.commit()
 
-        # Ingest one record
+        # Ingest one health observation
         batch = BatchSyncRequest(
-            device_id="device-priv",
+            device_id="device-priv-001",
             observations=[
                 ObservationItem(
                     metric_name="steps",
                     value=5000.0,
                     unit="count",
                     measured_at=utc_now() - timedelta(hours=1),
+                    device_record_id="step-rec-priv-1",
                 )
             ],
         )
         await SyncService.synchronize(session, person_id, batch)
+
+        # Ingest a medical record
+        med = MedicalRecord(
+            person_id=person_id,
+            record_type="lab_result",
+            title="Comprehensive Metabolic Panel",
+            provider_name="Memorial Health",
+            record_date=date(2026, 10, 20),
+            document_metadata={"glucose": 92, "fasting": True},
+            clinical_notes="Fasting blood glucose normal.",
+        )
+        session.add(med)
+
+        # Ingest a workout detail
+        workout = WorkoutDetail(
+            person_id=person_id,
+            workout_type="strength_training",
+            duration_minutes=45.0,
+            exercises=[{"name": "Barbell Squat", "sets": 3, "reps": 10, "weight_kg": 100.0}],
+            muscle_groups=["quadriceps", "glutes"],
+            total_volume_kg=3000.0,
+        )
+        session.add(workout)
+
+        # Ingest a daily insight
+        insight = DailyInsight(
+            person_id=person_id,
+            insight_date=date(2026, 10, 25),
+            headline="Optimal Recovery",
+            summary_text="Resting heart rate remains stable with good recovery markers.",
+            recovery_score=88.5,
+            key_metrics={"steps": 5000, "rhr": 60},
+            recommendations=["Maintain hydration throughout cardiovascular session."],
+            disclaimer="Insights are for educational and wellness tracking only, never medical diagnosis.",
+            provider="deterministic_heuristic",
+        )
+        session.add(insight)
+
         await session.commit()
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         headers = {"Authorization": f"Bearer {reg.access_token}"}
 
-        # 1. Export Data
+        # 1. Export Data & verify comprehensive manifest
         export_resp = await client.get("/api/v1/web/privacy/export", headers=headers)
         assert export_resp.status_code == 200
         export_data = export_resp.json()["data"]
-        assert export_data["total_records"] == 1
-        assert len(export_data["records"]) == 1
+
+        # Check manifest
+        assert export_data["manifest"]["version"] == "1.0"
+        assert "health_records" in export_data["manifest"]["data_categories"]
+        assert "medical_records" in export_data["manifest"]["data_categories"]
+        assert "workouts" in export_data["manifest"]["data_categories"]
+        assert "daily_insights" in export_data["manifest"]["data_categories"]
+
+        # Check counts and entity structures
+        assert export_data["total_records"] >= 1
+        assert len(export_data["records"]) >= 1
         assert len(export_data["person_profiles"]) == 1
+        assert len(export_data["medical_records"]) == 1
+        assert export_data["medical_records"][0]["title"] == "Comprehensive Metabolic Panel"
+        assert len(export_data["workouts"]) == 1
+        assert export_data["workouts"][0]["workout_type"] == "strength_training"
+        assert len(export_data["daily_insights"]) == 1
+        assert export_data["daily_insights"][0]["recovery_score"] == 88.5
+
+        # Check account metadata (strictly zero password hashes or refresh token secrets)
+        assert export_data["account"] is not None
+        assert export_data["account"]["email"] == test_email
+        assert "password" not in export_data["account"]
+        assert "password_hash" not in export_data["account"]
+        assert "refresh_token" not in export_data["account"]
 
         # 2. Delete Account with wrong password -> 400
         wrong_del = await client.post(
@@ -136,10 +202,36 @@ async def test_privacy_export_and_cascading_deletion() -> None:
         assert del_resp.status_code == 200
         assert del_resp.json()["data"]["status"] == "deleted"
 
-    # Verify user account and all health records are deleted from DB
+    # Verify user account and all personal records across all domain tables are completely erased
     async with AsyncSession(engine) as session:
         u_check = await session.execute(select(UserAccount).where(UserAccount.id == user_id))
         assert u_check.scalar_one_or_none() is None
 
+        p_check = await session.execute(select(Person).where(Person.user_account_id == user_id))
+        assert p_check.fetchall() == []
+
         hr_check = await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
         assert hr_check.fetchall() == []
+
+        mr_check = await session.execute(select(MedicalRecord).where(MedicalRecord.person_id == person_id))
+        assert mr_check.fetchall() == []
+
+        wd_check = await session.execute(select(WorkoutDetail).where(WorkoutDetail.person_id == person_id))
+        assert wd_check.fetchall() == []
+
+        di_check = await session.execute(select(DailyInsight).where(DailyInsight.person_id == person_id))
+        assert di_check.fetchall() == []
+
+        cred_check = await session.execute(select(AuthCredential).where(AuthCredential.user_account_id == user_id))
+        assert cred_check.scalar_one_or_none() is None
+
+        # Confirm anonymized audit tombstone exists without linking to user ID
+        tombstone_check = await session.execute(
+            select(AuditEvent).where(
+                AuditEvent.action == "account.purged_gdpr_art17",
+                AuditEvent.target_type == "user_account_tombstone",
+            )
+        )
+        tombstones = tombstone_check.scalars().all()
+        assert len(tombstones) >= 1
+        assert any(t.actor_id is None for t in tombstones)

@@ -10,10 +10,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from services.api.main import app
 
 
-def test_openapi_contract_matches_live_app_schema() -> None:
+@pytest.mark.asyncio
+async def test_openapi_contract_matches_live_app_schema() -> None:
     """Ensure repository OpenAPI contract file exactly matches the live FastAPI schema."""
     contract_file = (
         Path(__file__).resolve().parent.parent
@@ -38,4 +41,3 @@ def test_openapi_contract_matches_live_app_schema() -> None:
     assert stored_schema == live_schema, (
         "OpenAPI drift detected! Run 'python services/export_openapi.py' to update packages/api-contracts/openapi/v1.json."
     )
-
