@@ -368,6 +368,17 @@ class AuthService:
                 detail="Refresh token has expired. Please log in again.",
             )
 
+        # Inactive, suspended, or deletion_pending accounts cannot refresh session (OD-07, OD-18)
+        u_res = await session.execute(
+            select(UserAccount.status).where(UserAccount.id == token_record.user_account_id)
+        )
+        u_status = u_res.scalar_one_or_none()
+        if u_status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive, suspended, or pending deletion.",
+            )
+
         # Mark presented token as consumed
         token_record.is_consumed = True
 

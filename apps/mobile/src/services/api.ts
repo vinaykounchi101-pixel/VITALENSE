@@ -2,7 +2,7 @@
  * VitalSense Mobile API Gateway Client.
  *
  * Implements Bearer JWT authentication, proactive token rotation,
- * and typed interactions with the FastAPI backend.
+ * hardware-backed secure storage via SecureTokenStorage, and typed interactions.
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   DailyBriefing,
   PersonProfile,
 } from "../types";
+import { SecureTokenStorage } from "./storage/secureTokens";
 import { mobileStorage } from "./storage/sqlcipher";
 
 // Default to local/network gateway; configurable via process.env
@@ -23,24 +24,21 @@ class MobileApiClient {
 
   async getSession(): Promise<AuthSession | null> {
     if (this.currentSession) return this.currentSession;
-    const sessionStr = await mobileStorage.getItem("auth_session");
-    if (sessionStr) {
-      try {
-        this.currentSession = JSON.parse(sessionStr);
-        return this.currentSession;
-      } catch {
-        return null;
-      }
+    this.currentSession = await SecureTokenStorage.getSession();
+    if (this.currentSession?.user_account_id) {
+      await mobileStorage.initialize(this.currentSession.user_account_id);
     }
-    return null;
+    return this.currentSession;
   }
 
   async setSession(session: AuthSession | null): Promise<void> {
     this.currentSession = session;
     if (session) {
-      await mobileStorage.setItem("auth_session", JSON.stringify(session));
+      await SecureTokenStorage.saveSession(session);
+      await mobileStorage.initialize(session.user_account_id);
     } else {
-      await mobileStorage.removeItem("auth_session");
+      await SecureTokenStorage.clearSession();
+      await mobileStorage.close();
     }
   }
 
@@ -191,10 +189,14 @@ class MobileApiClient {
   }
 
   async deleteAccount(password: string): Promise<void> {
+    const current = await this.getSession();
     await this.request("/api/v1/mobile/privacy/delete-account", {
       method: "POST",
       body: JSON.stringify({ password }),
     });
+    if (current?.user_account_id) {
+      await mobileStorage.purgeAccountData(current.user_account_id);
+    }
     await this.setSession(null);
   }
 }

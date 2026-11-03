@@ -684,3 +684,156 @@ async def test_deletion_precedence_in_same_batch() -> None:
             await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
         ).scalars().all()
         assert len(remaining) == 0
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_first_ingestion_and_subsequent_duplicate_retry() -> None:
+    """Verify first ingestion succeeds and immediate identical re-submission is cleanly marked duplicate."""
+    engine = get_engine()
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(
+                email=f"first_ingest_{uuid.uuid4().hex[:8]}@example.com",
+                password="SecurePassword123!",
+            ),
+        )
+        person_id = reg.person_id
+        await session.commit()
+
+        stable_id = f"dev-first-{uuid.uuid4()}"
+        batch = BatchSyncRequest(
+            device_id="sensor-watch",
+            observations=[
+                ObservationItem(
+                    metric_name="heart_rate",
+                    value=72.0,
+                    unit="bpm",
+                    measured_at=utc_now() - timedelta(minutes=10),
+                    device_record_id=stable_id,
+                )
+            ],
+        )
+
+        # First ingestion
+        res_1 = await SyncService.synchronize(session, person_id, batch)
+        await session.commit()
+        assert res_1.processed_count == 1
+        assert res_1.duplicate_count == 0
+
+        # Duplicate ingestion retry
+        res_2 = await SyncService.synchronize(session, person_id, batch)
+        await session.commit()
+        assert res_2.processed_count == 0
+        assert res_2.duplicate_count == 1
+
+        # Verify only 1 HealthRecord exists
+        records = (
+            await session.execute(
+                select(HealthRecord).where(
+                    HealthRecord.person_id == person_id,
+                    HealthRecord.metric_id == "heart_rate",
+                )
+            )
+        ).scalars().all()
+        assert len(records) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_retry_after_transaction_failure_succeeds_without_partial_records() -> None:
+    """Verify that if a transaction fails (e.g. invalid validation on later record),
+    the session rolls back cleanly, leaves zero partial records, and a subsequent corrected retry succeeds."""
+    engine = get_engine()
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(
+                email=f"tx_fail_{uuid.uuid4().hex[:8]}@example.com",
+                password="SecurePassword123!",
+            ),
+        )
+        person_id = reg.person_id
+        await session.commit()
+
+        stable_id_1 = f"dev-tx-1-{uuid.uuid4()}"
+        stable_id_2 = f"dev-tx-2-{uuid.uuid4()}"
+        now = utc_now()
+
+        # Batch with valid first observation, but invalid second observation (end_timestamp precedes measured_at)
+        invalid_batch = BatchSyncRequest(
+            device_id="sensor-tx",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=1500.0,
+                    unit="count",
+                    measured_at=now - timedelta(hours=2),
+                    device_record_id=stable_id_1,
+                ),
+                ObservationItem(
+                    metric_name="steps",
+                    value=2000.0,
+                    unit="count",
+                    measured_at=now - timedelta(hours=1),
+                    end_timestamp=now - timedelta(hours=3),  # Inverted duration triggers 422
+                    device_record_id=stable_id_2,
+                ),
+            ],
+        )
+
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            await SyncService.synchronize(session, person_id, invalid_batch)
+        assert exc_info.value.status_code == 422
+        await session.rollback()
+
+        # Verify transaction rollback left zero records
+        source_count = (
+            await session.execute(
+                select(SourceRecord).where(SourceRecord.person_id == person_id)
+            )
+        ).scalars().all()
+        health_count = (
+            await session.execute(
+                select(HealthRecord).where(HealthRecord.person_id == person_id)
+            )
+        ).scalars().all()
+        assert len(source_count) == 0
+        assert len(health_count) == 0
+
+        # Now retry with a corrected valid batch using the original device IDs
+        corrected_batch = BatchSyncRequest(
+            device_id="sensor-tx",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=1500.0,
+                    unit="count",
+                    measured_at=now - timedelta(hours=2),
+                    device_record_id=stable_id_1,
+                ),
+                ObservationItem(
+                    metric_name="steps",
+                    value=2000.0,
+                    unit="count",
+                    measured_at=now - timedelta(hours=1),
+                    end_timestamp=now - timedelta(minutes=30),  # Valid duration
+                    device_record_id=stable_id_2,
+                ),
+            ],
+        )
+        res_corrected = await SyncService.synchronize(session, person_id, corrected_batch)
+        await session.commit()
+
+        assert res_corrected.processed_count == 2
+        assert res_corrected.duplicate_count == 0
+
+        final_health_records = (
+            await session.execute(
+                select(HealthRecord).where(HealthRecord.person_id == person_id)
+            )
+        ).scalars().all()
+        assert len(final_health_records) == 2
+

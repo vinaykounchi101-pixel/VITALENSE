@@ -2,12 +2,22 @@
  * Mobile Sensor & Health Adapter Interfaces.
  */
 
-import { HealthMetricRecord } from "../../types";
+import type { HealthMetricRecord } from "../../types/index.ts";
+
+export type PlatformPermissionState =
+  | "authorized"
+  | "denied"
+  | "undetermined"
+  | "unavailable"
+  | "read_status_private";
 
 export interface PermissionStatus {
   granted: boolean;
   canRequest: boolean;
   deniedPermissions: string[];
+  undeterminedPermissions?: string[];
+  readPrivacyRestricted?: boolean;
+  state?: PlatformPermissionState;
 }
 
 export interface HealthPlatformAdapter {
@@ -16,4 +26,3 @@ export interface HealthPlatformAdapter {
   checkPermissions(): Promise<PermissionStatus>;
   readRecentRecords(startTime: Date, endTime: Date): Promise<HealthMetricRecord[]>;
 }
-

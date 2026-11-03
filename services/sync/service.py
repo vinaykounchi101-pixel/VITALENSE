@@ -74,7 +74,7 @@ class SyncService:
         )
         user_res = await session.execute(user_query)
         user_status = user_res.scalar_one_or_none()
-        if user_status in ("deleted", "deletion_pending"):
+        if user_status is None or user_status in ("deleted", "deletion_pending"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Account is marked for deletion or deleted. Synchronization is disabled.",

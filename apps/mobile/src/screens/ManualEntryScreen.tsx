@@ -96,7 +96,7 @@ export function ManualEntryScreen({ onBack }: Props) {
         } else if (metricKey === "blood_glucose") {
           canonicalUnit = "mg/dL";
         } else if (metricKey === "oxygen_saturation") {
-          canonicalUnit = "%";
+          canonicalUnit = "percentage";
         }
 
         await mobileStorage.saveRecord({

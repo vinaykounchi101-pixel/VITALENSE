@@ -44,8 +44,14 @@
         {
           "rationale": "VitalSense needs access to Health Connect to analyze your daily activity, heart rate, and sleep recovery trends."
         }
+      ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true,
+          "useSQLCipher": true
+        }
       ]
     ]
   }
 }
-

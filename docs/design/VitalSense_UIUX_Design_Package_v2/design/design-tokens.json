@@ -1,0 +1,216 @@
+{
+  "metadata": {
+    "product": "VitalSense",
+    "version": "2.0.0",
+    "status": "visual-reference-aligned",
+    "reference": "references/VitalSense-Health-App-Showcase.png"
+  },
+  "design_direction": {
+    "description": "Premium, calm health intelligence interface. Warm ivory editorial light mode paired with deep charcoal dark mode. Muted teal/mint brand identity, restrained pastel metric accents, anatomical health visualization, rounded surfaces and clear data hierarchy.",
+    "visual_priority": [
+      "Match the supplied showcase composition and visual language",
+      "Use warm off-white rather than stark white in light mode",
+      "Use charcoal rather than pure black in dark mode",
+      "Keep green/teal as a restrained brand and positive-status accent, not a dominant surface colour",
+      "Use coral, mint, lavender and soft blue to distinguish metric families",
+      "Keep typography crisp, compact and highly legible"
+    ]
+  },
+  "themes": {
+    "light": {
+      "canvas": "#F4F1EC",
+      "surface": "#FBF9F5",
+      "surface_elevated": "#FFFFFF",
+      "surface_subtle": "#EEEAE4",
+      "sidebar": "#F0EDE7",
+      "text_primary": "#252C32",
+      "text_secondary": "#69727A",
+      "text_muted": "#92999D",
+      "border": "#E5E0D8",
+      "brand": "#285F58",
+      "primary": "#B9D6BE",
+      "primary_hover": "#A8C9AF",
+      "primary_text": "#203B35",
+      "teal_soft": "#DCE9E1",
+      "coral": "#E98F8E",
+      "coral_soft": "#F8E4E1",
+      "mint": "#A9C9B9",
+      "mint_soft": "#E3EEE8",
+      "lavender": "#B8A9E6",
+      "lavender_soft": "#EEE9F8",
+      "blue": "#8EB9D8",
+      "blue_soft": "#E3EEF5",
+      "peach": "#F0B58D",
+      "peach_soft": "#F8EBDD",
+      "warning": "#C18B4F",
+      "danger": "#C76F70",
+      "positive": "#548B73"
+    },
+    "dark": {
+      "canvas": "#202326",
+      "surface": "#292D31",
+      "surface_elevated": "#30353A",
+      "surface_subtle": "#353A3F",
+      "sidebar": "#24282C",
+      "text_primary": "#F2F2EF",
+      "text_secondary": "#B8BEC0",
+      "text_muted": "#899195",
+      "border": "#3B4145",
+      "brand": "#A9CDBB",
+      "primary": "#E9E0CF",
+      "primary_hover": "#DCD0BB",
+      "primary_text": "#303431",
+      "teal_soft": "#344740",
+      "coral": "#F19B9B",
+      "coral_soft": "#493638",
+      "mint": "#A8C9B8",
+      "mint_soft": "#35453F",
+      "lavender": "#B6A6E8",
+      "lavender_soft": "#403B50",
+      "blue": "#8EBDE0",
+      "blue_soft": "#303F4B",
+      "peach": "#E9B28F",
+      "peach_soft": "#493D35",
+      "warning": "#D4A66A",
+      "danger": "#E18A8B",
+      "positive": "#9AC5AC"
+    }
+  },
+  "typography": {
+    "display": "Manrope, Inter, system-ui, sans-serif",
+    "ui": "Inter, Manrope, system-ui, sans-serif",
+    "data": "Inter, system-ui, sans-serif",
+    "scale_px": {
+      "display": 42,
+      "h1": 32,
+      "h2": 25,
+      "h3": 20,
+      "h4": 16,
+      "body_large": 16,
+      "body": 14,
+      "caption": 12,
+      "micro": 10
+    },
+    "weights": {
+      "regular": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "heading_line_height": 1.18,
+    "body_line_height": 1.5,
+    "numeric_features": "tabular-nums"
+  },
+  "spacing_px": {
+    "1": 4,
+    "2": 8,
+    "3": 12,
+    "4": 16,
+    "5": 20,
+    "6": 24,
+    "8": 32,
+    "10": 40,
+    "12": 48,
+    "16": 64
+  },
+  "radii_px": {
+    "xs": 7,
+    "sm": 11,
+    "md": 15,
+    "lg": 19,
+    "xl": 25,
+    "pill": 999
+  },
+  "layout": {
+    "content_max_width": 1480,
+    "desktop_sidebar": 142,
+    "desktop_header": 60,
+    "mobile_header": 60,
+    "mobile_bottom_nav": 64,
+    "page_gutter": {
+      "mobile": 16,
+      "tablet": 24,
+      "desktop": 28
+    },
+    "breakpoints": {
+      "mobile_max": 767,
+      "tablet_min": 768,
+      "tablet_max": 1023,
+      "desktop_min": 1024
+    },
+    "desktop_dashboard": "Compact left navigation, search/header row, wide hero panel, four metric summary cards, then analytics/body metrics/workout modules.",
+    "mobile_dashboard": "Dedicated mobile home with greeting, health score summary, compact metric tiles and quick actions; bottom tab navigation."
+  },
+  "components": {
+    "card": {
+      "radius": "lg",
+      "padding_px": 18,
+      "border": "1px solid theme.border",
+      "shadow": "soft diffuse shadow in light theme; restrained elevation in dark theme"
+    },
+    "button": {
+      "height_px": {
+        "sm": 34,
+        "md": 42,
+        "lg": 50
+      },
+      "radius": "pill"
+    },
+    "input": {
+      "height_px": 44,
+      "radius": "pill"
+    },
+    "metric_card": {
+      "radius": "lg",
+      "padding_px": 14,
+      "icon_container": "pastel circular tile",
+      "value_weight": 700
+    },
+    "chart": {
+      "line_width_px": 2,
+      "grid": "subtle",
+      "show_units": true,
+      "show_date_range": true,
+      "text_summary_required": true
+    },
+    "navigation": {
+      "desktop": "compact vertical sidebar",
+      "mobile": "four/five-item bottom tab bar"
+    }
+  },
+  "metric_visual_language": {
+    "heart_rate": "coral/red heart icon and accent",
+    "steps": "mint/teal movement icon and accent",
+    "active_energy": "peach/orange flame accent",
+    "sleep_session": "lavender moon accent",
+    "workout_session": "blue or mint activity accent",
+    "body_metrics": "neutral anatomical illustration with restrained labels"
+  },
+  "motion": {
+    "duration_ms": {
+      "fast": 120,
+      "standard": 200,
+      "slow": 300
+    },
+    "respect_reduced_motion": true
+  },
+  "accessibility": {
+    "minimum_target_px": 44,
+    "wcag_target": "2.2 AA",
+    "visible_keyboard_focus": true,
+    "never_use_colour_alone_for_status": true,
+    "charts_require_text_alternative": true
+  },
+  "product_constraints": [
+    "No AI slope.",
+    "Do not let green dominate the interface.",
+    "Do not present fabricated health readings as real user data.",
+    "Distinguish measured, manually entered, imported, AI-generated and ML-forecast data.",
+    "Show data source and freshness where relevant.",
+    "Missing data is not zero and must not be labeled Normal by default.",
+    "AI/ML outputs are informational and never diagnoses.",
+    "Do not present future-phase features as completed Phase 1 functionality.",
+    "Do not copy sample names or sample values from the reference as real user content.",
+    "Create purpose-designed mobile screens rather than shrinking desktop layouts."
+  ]
+}
