@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from vitalsense_common.logging import logger
 from vitalsense_common.models.account import Person, UserAccount
 from vitalsense_common.models.audit import AuditEvent
 from vitalsense_common.models.auth import AuthCredential, AuthPasswordResetToken, AuthRefreshToken
@@ -351,51 +352,65 @@ class PrivacyService:
                 detail="Invalid confirmation password. Account deletion aborted.",
             )
 
-        # 2. Identify all associated persons for explicit cascade guarantees
-        p_res = await session.execute(
-            select(Person.id).where(Person.user_account_id == user_account_id)
-        )
-        person_ids = p_res.scalars().all()
+        # 2. Execute transactional deletion across all 8 domain entity tables
+        try:
+            async with session.begin_nested():
+                # Identify all associated persons for explicit cascade guarantees
+                p_res = await session.execute(
+                    select(Person.id).where(Person.user_account_id == user_account_id)
+                )
+                person_ids = p_res.scalars().all()
 
-        if person_ids:
-            # Explicitly delete dependent extended domain records
-            await session.execute(delete(DailyInsight).where(DailyInsight.person_id.in_(person_ids)))
-            await session.execute(delete(MedicalRecord).where(MedicalRecord.person_id.in_(person_ids)))
-            await session.execute(delete(WorkoutDetail).where(WorkoutDetail.person_id.in_(person_ids)))
-            await session.execute(delete(ExternalImport).where(ExternalImport.person_id.in_(person_ids)))
+                if person_ids:
+                    # Explicitly delete dependent extended domain records
+                    await session.execute(delete(DailyInsight).where(DailyInsight.person_id.in_(person_ids)))
+                    await session.execute(delete(MedicalRecord).where(MedicalRecord.person_id.in_(person_ids)))
+                    await session.execute(delete(WorkoutDetail).where(WorkoutDetail.person_id.in_(person_ids)))
+                    await session.execute(delete(ExternalImport).where(ExternalImport.person_id.in_(person_ids)))
 
-            # Delete sync tracking and tombstones
-            await session.execute(delete(ClientSyncCursor).where(ClientSyncCursor.person_id.in_(person_ids)))
-            await session.execute(delete(SyncTombstone).where(SyncTombstone.person_id.in_(person_ids)))
+                    # Delete sync tracking and tombstones
+                    await session.execute(delete(ClientSyncCursor).where(ClientSyncCursor.person_id.in_(person_ids)))
+                    await session.execute(delete(SyncTombstone).where(SyncTombstone.person_id.in_(person_ids)))
 
-            # Delete clinical records and source tracking
-            await session.execute(delete(HealthRecord).where(HealthRecord.person_id.in_(person_ids)))
-            await session.execute(delete(SourceRecord).where(SourceRecord.person_id.in_(person_ids)))
+                    # Delete clinical records and source tracking
+                    await session.execute(delete(HealthRecord).where(HealthRecord.person_id.in_(person_ids)))
+                    await session.execute(delete(SourceRecord).where(SourceRecord.person_id.in_(person_ids)))
 
-            # Delete persons
-            await session.execute(delete(Person).where(Person.user_account_id == user_account_id))
+                    # Delete persons
+                    await session.execute(delete(Person).where(Person.user_account_id == user_account_id))
 
-        # 3. Explicitly revoke and purge authentication sessions and credentials
-        await session.execute(delete(AuthRefreshToken).where(AuthRefreshToken.user_account_id == user_account_id))
-        await session.execute(delete(AuthPasswordResetToken).where(AuthPasswordResetToken.user_account_id == user_account_id))
-        await session.execute(delete(AuthCredential).where(AuthCredential.user_account_id == user_account_id))
+                # 3. Explicitly revoke and purge authentication sessions and credentials
+                await session.execute(delete(AuthRefreshToken).where(AuthRefreshToken.user_account_id == user_account_id))
+                await session.execute(delete(AuthPasswordResetToken).where(AuthPasswordResetToken.user_account_id == user_account_id))
+                await session.execute(delete(AuthCredential).where(AuthCredential.user_account_id == user_account_id))
 
-        # 4. Write an unidentifiable, anonymized audit tombstone for regulatory accounting
-        anonymous_audit = AuditEvent(
-            actor_id=None,
-            actor_type="system",
-            action="account.purged_gdpr_art17",
-            target_type="user_account_tombstone",
-            target_id="anonymized_erasure",
-            timestamp=now,
-            result="success",
-        )
-        session.add(anonymous_audit)
+                # 4. Anonymize past user audit logs (remove personal identifiers while preserving regulatory records)
+                await session.execute(delete(AuditEvent).where(AuditEvent.actor_id == user_account_id))
 
-        # 5. Purge the root UserAccount record
-        del_stmt = delete(UserAccount).where(UserAccount.id == user_account_id)
-        await session.execute(del_stmt)
-        await session.flush()
+                # 5. Write an unidentifiable, anonymized audit tombstone for regulatory accounting
+                anonymous_audit = AuditEvent(
+                    actor_id=None,
+                    actor_type="system",
+                    action="account.purged_gdpr_art17",
+                    target_type="user_account_tombstone",
+                    target_id="anonymized_erasure",
+                    timestamp=now,
+                    result="success",
+                )
+                session.add(anonymous_audit)
+
+                # 6. Purge the root UserAccount record
+                del_stmt = delete(UserAccount).where(UserAccount.id == user_account_id)
+                await session.execute(del_stmt)
+                await session.flush()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Account deletion transaction failed; rolled back all changes", exc_info=exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Account deletion transaction failed. All changes have been safely rolled back.",
+            ) from exc
 
         return DeleteAccountResponse(
             status="deleted",

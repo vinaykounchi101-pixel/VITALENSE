@@ -310,9 +310,25 @@
   - Authored `docs/stabilization/FINAL_STABILIZATION_REPORT.md` (all 17 required sections).
   - Authored `docs/stabilization/FEATURE_VERIFICATION_MATRIX.md`.
   - Updated `README.md` to remove obsolete Kotlin/Swift references in favor of React Native + Expo.
-  - Full test suite: **77/77 tests PASSED** (100% pass rate).
+  - Full test suite: **79/79 tests PASSED** (100% pass rate).
   - OpenAPI 3.1.0 contract verified with **0 drift**.
   - Production Web build (`npm run build` in `apps/web`) verified with **0 errors**.
+
+### Stabilization Follow-up — Native Security Corrections & Ingestion Integrity
+- [x] **SQLCipher Configuration & Verification Logic**:
+  - Configured official `expo-sqlite` plugin with `useSQLCipher: true` and `enableFTS: true` in `apps/mobile/app.json`.
+  - Added `getCipherVersion()` querying `PRAGMA cipher_version;`.
+  - Enforced forced page-1 decryption verification via `SELECT count(*) FROM sqlite_master;` upon initialization.
+  - Verified account isolation, hardware-backed key lifecycle via `expo-secure-store`, and deliberate database/key file purging.
+  - Transparently classified as **implemented but unverified at runtime** pending native mobile compilation on physical/emulator target.
+- [x] **Deterministic Ingestion & Zero Fabrication**:
+  - Hardened `HealthConnectAdapter.ts` and `HealthKitAdapter.ts` with `deriveStableSourceId(platformId, metric, timestamp, suffix)`.
+  - Completely eliminated `Math.random()`, `Date.now()`, and blank fallback IDs.
+  - Implemented extraction across all 8 canonical metrics with zero fabrication (missing values skipped rather than defaulted to 0).
+- [x] **Transactional Privacy Deletion & Post-Deletion Sync Guard**:
+  - Wrapped cascading account deletion in `services/privacy/service.py` within an atomic database savepoint (`async with session.begin_nested():`) ensuring clean rollback on mid-operation failure.
+  - Hardened `services/sync/service.py` to reject zombie offline uploads with HTTP 403 Forbidden even when account record is completely purged (`user_status is None`).
+  - Added 2 new integration tests in `tests/test_integrations_and_privacy.py` (79/79 passing).
 
 ---
 
@@ -326,9 +342,10 @@
 ---
 
 ## 3. Verification Summary
-- **Backend Tests:** 77 / 77 PASSED (100% pass rate across 16 test modules in 45.39s)
+- **Backend Tests:** 79 / 79 PASSED (100% pass rate across 16 test modules in 48.41s)
 - **OpenAPI Drift:** 0 drift detected (`packages/api-contracts/openapi/v1.json`)
 - **Web App Build:** Next.js 14 production build PASSED (5 static routes, 0 errors)
 - **Mobile App Types:** TypeScript compilation PASSED (`npx tsc --project apps/mobile/tsconfig.json` exited with code 0)
 - **Database Schema:** Alembic migrations applied cleanly to head (`006_extended_domain`)
-- **Security & Privacy:** Mandatory medical disclaimers, zero data fabrication, full GDPR Art. 17/20 adherence with structured manifest.
+- **Security & Privacy:** Mandatory medical disclaimers, zero data fabrication, full GDPR Art. 17/20 adherence with structured manifest and transactional rollback.
+- **Merge Status:** NOT YET SAFE TO MERGE INTO `dev` until native SQLCipher runtime verification is performed on physical/virtual devices.

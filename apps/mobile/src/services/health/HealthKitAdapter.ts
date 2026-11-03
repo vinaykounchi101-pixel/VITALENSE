@@ -2,7 +2,8 @@
  * iOS Apple HealthKit Genuine Platform Integration (OD-07, SRS-HK).
  *
  * Implements Apple HealthKit capability verification, permission management,
- * and canonical metric extraction. Strictly adheres to the zero-fabrication policy.
+ * deterministic stable identification, and canonical metric extraction.
+ * Strictly adheres to the zero-fabrication policy.
  */
 
 import { Platform } from "react-native";
@@ -24,6 +25,23 @@ const PERMISSIONS: HealthKitPermissions = {
     write: [],
   },
 };
+
+/**
+ * Derives a stable, deterministic record identifier from Apple HealthKit UUID or observation attributes.
+ * Prevents duplicate observations across repeated imports and eliminates random identifiers.
+ */
+function deriveStableSourceId(
+  platformId: string | undefined | null,
+  metric: string,
+  timestamp: string,
+  suffix = ""
+): string {
+  if (platformId && platformId.trim().length > 0) {
+    return suffix ? `${platformId.trim()}_${suffix}` : platformId.trim();
+  }
+  // Deterministic identity strategy based on actual source observation
+  return `det_hk_${metric}_${timestamp}${suffix ? "_" + suffix : ""}`;
+}
 
 export class HealthKitAdapter implements HealthPlatformAdapter {
   /**
@@ -111,7 +129,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
 
     return new Promise((resolve) => {
       try {
-        AppleHealthKit.initHealthKit(PERMISSIONS, (err: any, results: any) => {
+        AppleHealthKit.initHealthKit(PERMISSIONS, (err: any) => {
           if (err) {
             resolve({
               granted: false,
@@ -134,7 +152,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
 
   /**
    * Reads HealthKit observations and normalizes them into VitalSense records.
-   * Zero-fabrication: Never fabricates measurements when no data or denied.
+   * Zero-fabrication: Never fabricates measurements when no data exists or permissions are denied.
    */
   async readRecentRecords(startTime: Date, endTime: Date): Promise<HealthMetricRecord[]> {
     const available = await this.isAvailable();
@@ -151,25 +169,51 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
     };
 
     const records: HealthMetricRecord[] = [];
+    const nowIso = new Date().toISOString();
 
-    // 1. Steps
+    // 1. Steps (using sample-level API for accurate timestamps and platform UUIDs)
     await new Promise<void>((resolve) => {
       try {
-        AppleHealthKit.getStepCount(options, (err: any, results: any) => {
-          if (!err && results && typeof results.value === "number") {
-            records.push({
-              record_id: `hk_steps_${Date.now()}`,
-              source_name: "apple_healthkit",
-              source_record_id: `hk_steps_${startTime.toISOString()}`,
-              metric_name: "steps",
-              numeric_value: results.value,
-              unit: "count",
-              measured_at: startTime.toISOString(),
-              recorded_at: new Date().toISOString(),
-            });
-          }
-          resolve();
-        });
+        if (typeof (AppleHealthKit as any).getDailyStepCountSamples === "function") {
+          (AppleHealthKit as any).getDailyStepCountSamples(options, (err: any, samples: any[]) => {
+            if (!err && Array.isArray(samples)) {
+              for (const sample of samples) {
+                if (sample && typeof sample.value === "number" && sample.value > 0) {
+                  const sampleDate = sample.startDate || sample.endDate || startTime.toISOString();
+                  const stableId = deriveStableSourceId(sample.id || sample.uuid, "steps", sampleDate);
+                  records.push({
+                    record_id: `hk_rec_${stableId}`,
+                    source_name: "apple_healthkit",
+                    source_record_id: stableId,
+                    metric_name: "steps",
+                    numeric_value: sample.value,
+                    unit: "count",
+                    measured_at: sampleDate,
+                    recorded_at: nowIso,
+                  });
+                }
+              }
+            }
+            resolve();
+          });
+        } else {
+          AppleHealthKit.getStepCount(options, (err: any, results: any) => {
+            if (!err && results && typeof results.value === "number" && results.value > 0) {
+              const stableId = deriveStableSourceId(null, "steps", startTime.toISOString());
+              records.push({
+                record_id: `hk_rec_${stableId}`,
+                source_name: "apple_healthkit",
+                source_record_id: stableId,
+                metric_name: "steps",
+                numeric_value: results.value,
+                unit: "count",
+                measured_at: startTime.toISOString(),
+                recorded_at: nowIso,
+              });
+            }
+            resolve();
+          });
+        }
       } catch {
         resolve();
       }
@@ -181,22 +225,144 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
         AppleHealthKit.getHeartRateSamples(options, (err: any, samples: any[]) => {
           if (!err && Array.isArray(samples)) {
             for (const sample of samples) {
-              if (sample && typeof sample.value === "number") {
+              if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
+                const stableId = deriveStableSourceId(
+                  sample.id || sample.uuid,
+                  "hr",
+                  sample.startDate,
+                  String(sample.value)
+                );
                 records.push({
-                  record_id: `hk_hr_${sample.id || Math.random()}`,
+                  record_id: `hk_rec_${stableId}`,
                   source_name: "apple_healthkit",
-                  source_record_id: sample.id || "",
+                  source_record_id: stableId,
                   metric_name: "heart_rate",
                   numeric_value: sample.value,
                   unit: "bpm",
-                  measured_at: sample.startDate || new Date().toISOString(),
-                  recorded_at: new Date().toISOString(),
+                  measured_at: sample.startDate,
+                  recorded_at: nowIso,
                 });
               }
             }
           }
           resolve();
         });
+      } catch {
+        resolve();
+      }
+    });
+
+    // 3. Sleep Analysis
+    await new Promise<void>((resolve) => {
+      try {
+        if (typeof (AppleHealthKit as any).getSleepSamples === "function") {
+          (AppleHealthKit as any).getSleepSamples(options, (err: any, samples: any[]) => {
+            if (!err && Array.isArray(samples)) {
+              for (const sample of samples) {
+                if (sample && sample.startDate && sample.endDate) {
+                  const startMs = new Date(sample.startDate).getTime();
+                  const endMs = new Date(sample.endDate).getTime();
+                  const durationSeconds = (endMs - startMs) / 1000;
+                  if (durationSeconds > 0) {
+                    const stableId = deriveStableSourceId(sample.id || sample.uuid, "sleep", sample.startDate);
+                    records.push({
+                      record_id: `hk_rec_${stableId}`,
+                      source_name: "apple_healthkit",
+                      source_record_id: stableId,
+                      metric_name: "sleep_session",
+                      numeric_value: durationSeconds,
+                      unit: "seconds",
+                      measured_at: sample.startDate,
+                      recorded_at: nowIso,
+                    });
+                  }
+                }
+              }
+            }
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      } catch {
+        resolve();
+      }
+    });
+
+    // 4. Active Energy Burned
+    await new Promise<void>((resolve) => {
+      try {
+        if (typeof (AppleHealthKit as any).getActiveEnergyBurned === "function") {
+          (AppleHealthKit as any).getActiveEnergyBurned(options, (err: any, samples: any[]) => {
+            if (!err && Array.isArray(samples)) {
+              for (const sample of samples) {
+                if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
+                  const stableId = deriveStableSourceId(sample.id || sample.uuid, "active_energy", sample.startDate);
+                  records.push({
+                    record_id: `hk_rec_${stableId}`,
+                    source_name: "apple_healthkit",
+                    source_record_id: stableId,
+                    metric_name: "active_energy",
+                    numeric_value: sample.value,
+                    unit: "kcal",
+                    measured_at: sample.startDate,
+                    recorded_at: nowIso,
+                  });
+                }
+              }
+            }
+            resolve();
+          });
+        } else {
+          resolve();
+        }
+      } catch {
+        resolve();
+      }
+    });
+
+    // 5. Blood Pressure (Paired)
+    await new Promise<void>((resolve) => {
+      try {
+        if (typeof (AppleHealthKit as any).getBloodPressureSamples === "function") {
+          (AppleHealthKit as any).getBloodPressureSamples(options, (err: any, samples: any[]) => {
+            if (!err && Array.isArray(samples)) {
+              for (const sample of samples) {
+                const sys = sample.bloodPressureSystolicValue ?? sample.systolic;
+                const dia = sample.bloodPressureDiastolicValue ?? sample.diastolic;
+                const date = sample.startDate || sample.endDate;
+                if (typeof sys === "number" && typeof dia === "number" && sys > dia && date) {
+                  const pairId = deriveStableSourceId(sample.id || sample.uuid, "bp", date);
+                  records.push({
+                    record_id: `hk_rec_${pairId}_sys`,
+                    source_name: "apple_healthkit",
+                    source_record_id: `${pairId}_sys`,
+                    metric_name: "blood_pressure_systolic",
+                    numeric_value: sys,
+                    unit: "mmHg",
+                    measured_at: date,
+                    recorded_at: nowIso,
+                    metadata_json: { paired_reading_id: pairId },
+                  });
+                  records.push({
+                    record_id: `hk_rec_${pairId}_dia`,
+                    source_name: "apple_healthkit",
+                    source_record_id: `${pairId}_dia`,
+                    metric_name: "blood_pressure_diastolic",
+                    numeric_value: dia,
+                    unit: "mmHg",
+                    measured_at: date,
+                    recorded_at: nowIso,
+                    metadata_json: { paired_reading_id: pairId },
+                  });
+                }
+              }
+            }
+            resolve();
+          });
+        } else {
+          resolve();
+        }
       } catch {
         resolve();
       }

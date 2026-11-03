@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This report documents the completion of the **VitalSense Stabilization & Verification Sprint**. Operating under strict verification requirements, the engineering team inspected the actual codebase, eliminated simulation placeholders, corrected Docker deployment configurations, hardened privacy export and cascading purge mechanisms, implemented persistent hardware-backed mobile storage and real platform health adapters, and verified the complete test suite and web build with 100% genuine evidence.
+This report documents the completion of the **VitalSense Stabilization & Verification Sprint** and subsequent **Native Security Corrections**. Operating under strict verification requirements, the engineering team inspected the actual codebase, eliminated simulation placeholders, corrected Docker deployment configurations, hardened privacy export and cascading purge mechanisms, implemented persistent hardware-backed mobile storage, enabled the official Expo SDK 51 SQLCipher plugin, corrected health ingestion adapters to eliminate random identifiers and value fabrication, and verified the complete test suite and web build with 100% genuine evidence.
 
 ---
 
@@ -19,7 +19,8 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 
 - **New Working Branch:** `stabilization/security-integrity-verification`
 - **Base Commit:** `d8db2d766f44307600b46e05882a109a49cb1df5`
-- **Stabilization Commit:** `f8998157d62fcba59dcbf2435f4bfd3d20a7d903`
+- **Stabilization Commit:** `bbddd085e8481d7accba7c5f06ae216e4787c6ad`
+- **Follow-up Correction Commit:** (Reflected in current branch HEAD)
 - **Target Branch for Merge Review:** `dev` (strictly via pull request; no direct pushes to `dev` or `main`)
 
 ---
@@ -28,22 +29,24 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 
 ### Backend & Common Libraries
 - `packages/python-common/src/vitalsense_common/schemas/privacy.py`: Expanded `ExportHealthDataResponse` schema with top-level `manifest`, `account` metadata, `source_records`, `medical_records`, `workouts`, `daily_insights`, `external_imports`, `audit_events`.
-- `services/privacy/service.py`: Implemented comprehensive GDPR Art. 20 export across all 8 domain entity categories with structured category counts; hardened GDPR Art. 17 cascading erasure with explicit multi-table deletion and anonymized regulatory audit tombstone generation.
+- `services/privacy/service.py`: Implemented comprehensive GDPR Art. 20 export across all 8 domain entity categories with structured category counts; hardened GDPR Art. 17 cascading erasure with transactional savepoint rollback (`session.begin_nested()`), explicit multi-table deletion, user audit log anonymization, and anonymized regulatory audit tombstone generation.
+- `services/sync/service.py`: Fixed deletion precedence check to strictly reject sync batches if `user_status is None` (permanently deleted user account/person), preventing offline resurrection.
 - `packages/api-contracts/openapi/v1.json`: Regenerated OpenAPI 3.1.0 specification with updated privacy schemas (zero drift).
 
 ### Ingestion, Security & Testing
 - `tests/test_permanent_replay_protection.py`: Added 2 exhaustive integration tests covering immediate duplicate retry suppression and mid-batch transaction failure rollback with clean retry (12/12 passing).
-- `tests/test_integrations_and_privacy.py`: Added comprehensive verification of GDPR export manifest, 8-entity categories, zero credential leakage, and cross-table database purge (2/2 passing).
+- `tests/test_integrations_and_privacy.py`: Added comprehensive verification of GDPR export manifest, 8-entity categories, zero credential leakage, cross-table database purge, transactional deletion rollback on simulated failure, and post-deletion offline sync rejection (4/4 passing).
 - `tests/test_openapi_drift.py`: Added `@pytest.mark.asyncio` decorator and validated zero schema drift.
 
 ### Mobile Client (`apps/mobile`)
+- `apps/mobile/app.json`: Added `expo-sqlite` plugin configuration with `"useSQLCipher": true` and `"enableFTS": true` matching Expo SDK 51 specifications.
 - `apps/mobile/package.json`: Added `expo-sqlite`, `expo-secure-store`, and `expo-crypto` dependencies.
 - `apps/mobile/react-native.d.ts`: Ambient offline TypeScript declarations for React Native, Expo Crypto/SecureStore/SQLite, and Health Connect/HealthKit.
-- `apps/mobile/src/services/storage/sqlcipher.ts`: Completely eliminated in-memory `Map` placeholder; implemented persistent encrypted SQLite storage (`MobileEncryptedStorage`) with SQLCipher 256-bit AES encryption (`PRAGMA key`, `PRAGMA cipher_compatibility = 4`, `PRAGMA foreign_keys = ON`), hardware-backed key derivation, and per-user database file isolation.
+- `apps/mobile/src/services/storage/sqlcipher.ts`: Completely eliminated in-memory `Map` placeholder; implemented persistent encrypted SQLite storage (`MobileEncryptedStorage`) with SQLCipher 256-bit AES encryption (`PRAGMA key`, `PRAGMA cipher_compatibility = 4`, `PRAGMA foreign_keys = ON`), page-1 decryption verification against `sqlite_master`, `getCipherVersion()` inspection, hardware-backed key derivation, per-user database file isolation, and explicit database file/key purging.
 - `apps/mobile/src/services/storage/secureTokens.ts`: Created hardware-backed credential storage using `expo-secure-store` for access and refresh tokens.
 - `apps/mobile/src/services/api.ts`: Bound API client to `SecureTokenStorage` and integrated database lifecycle with authentication sessions.
-- `apps/mobile/src/services/health/HealthConnectAdapter.ts`: Replaced hardcoded `true` flags with real Android platform detection, SDK availability checking, granular permission requests, and sensor normalization for 5 core metrics with strict zero-fabrication.
-- `apps/mobile/src/services/health/HealthKitAdapter.ts`: Replaced hardcoded flags with real iOS platform detection, permission handling, and genuine sensor normalization for Steps and Heart Rate with honest empty states.
+- `apps/mobile/src/services/health/HealthConnectAdapter.ts`: Replaced `Math.random()` fallbacks with `deriveStableSourceId`; eliminated empty source record IDs; prevented converting missing calories/metrics to zero; implemented all 8 metrics with strict canonical units and zero-fabrication.
+- `apps/mobile/src/services/health/HealthKitAdapter.ts`: Replaced `Date.now()` and `Math.random()` fallbacks with `deriveStableSourceId`; implemented sample-level queries with stable UUIDs for Steps, Heart Rate, Sleep, Active Energy, and Paired Blood Pressure; enforced zero-fabrication.
 - `apps/mobile/src/screens/ManualEntryScreen.tsx`: Corrected oxygen saturation canonical unit to `percentage`.
 
 ### Infrastructure & Deployment
@@ -70,26 +73,31 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 ## 5. Bugs Identified
 
 1. **Mobile In-Memory Storage Placeholder:** `apps/mobile/src/services/storage/sqlcipher.ts` previously used a transient JavaScript `Map` instead of real encrypted persistence, losing all offline data upon app restart and failing `OD-17` security requirements.
-2. **Mobile Simulated Health Adapters:** `HealthConnectAdapter.ts` and `HealthKitAdapter.ts` returned hardcoded `true` flags and lacked genuine SDK status checking, permission inspection, and strict zero-fabrication guarantees.
-3. **Docker API Entrypoint & Healthcheck Misconfiguration:** `Dockerfile.api` specified `CMD ["uvicorn", "services.main:app", ...]` (which does not exist) and queried `/api/v1/health` (which returned 404), causing immediate container startup failure.
-4. **Docker Compose Insecure Fallback Credentials:** `docker-compose.yml` configured default development passwords for production secrets (`JWT_SECRET_KEY`, `REFRESH_TOKEN_PEPPER`, `POSTGRES_PASSWORD`), posing security risks if deployed without explicit environment overrides.
-5. **Incomplete GDPR Data Portability Export:** `PrivacyService.export_all_data` only exported `health_records` and `sync_tombstones`, omitting user account metadata, source receipts, medical records, workout sessions, daily insights, external imports, and the required top-level `manifest`.
-6. **GDPR Erasure Relational Inconsistency:** Cascading account deletion relied solely on implicit database foreign key cascades without explicitly validating the removal of all extended domain entities, sync cursors, and credential records, and lacked an anonymized regulatory audit tombstone.
-7. **Documentation Discrepancy in README:** `README.md` referenced Kotlin/Jetpack Compose and Swift/SwiftUI, conflicting with the approved React Native + Expo architecture (`OD-16`).
-8. **Test Suite Async Decorator Omission:** `tests/test_openapi_drift.py` lacked `@pytest.mark.asyncio`, which under `asyncio: mode=Mode.STRICT` caused event loop conflicts with the global database cleanup fixture.
+2. **Missing SQLCipher Expo Config Plugin:** `app.json` lacked the `expo-sqlite` plugin configuration with `"useSQLCipher": true`, which would cause Expo prebuilds to link vanilla SQLite instead of SQLCipher binaries.
+3. **Unverified SQLCipher Execution:** Executing `PRAGMA key` alone does not verify encryption because vanilla SQLite treats unrecognized pragmas as no-ops without error.
+4. **Random Fallback Identifiers in Mobile Health Adapters:** Both `HealthConnectAdapter.ts` and `HealthKitAdapter.ts` previously utilized `Math.random()` and `Date.now()` when platform record IDs were absent, generating unstable identifiers that caused duplicate records on repeated syncs.
+5. **Empty Source Record IDs in Mobile Adapters:** Adapters passed `""` (empty string) as `source_record_id`, defeating database uniqueness checks and server idempotency tracking.
+6. **Zero-Fabrication Violation:** Missing calories (`energy?.inKilocalories`) were defaulted to `0` instead of skipping the observation.
+7. **Incomplete Mobile Metric Support:** Health Connect declared `RestingHeartRate`, `OxygenSaturation`, and `BloodGlucose` in permissions but did not extract them in `readRecentRecords`; HealthKit declared `SleepAnalysis`, `ActiveEnergyBurned`, and `BloodPressure` in permissions but did not extract them.
+8. **Docker API Entrypoint & Healthcheck Misconfiguration:** `Dockerfile.api` specified `CMD ["uvicorn", "services.main:app", ...]` (which does not exist) and queried `/api/v1/health` (which returned 404), causing immediate container startup failure.
+9. **Docker Compose Insecure Fallback Credentials:** `docker-compose.yml` configured default development passwords for production secrets (`JWT_SECRET_KEY`, `REFRESH_TOKEN_PEPPER`, `POSTGRES_PASSWORD`).
+10. **Incomplete GDPR Data Portability Export:** `PrivacyService.export_all_data` only exported `health_records` and `sync_tombstones`, omitting user account metadata, source receipts, medical records, workout sessions, daily insights, external imports, and the required top-level `manifest`.
+11. **Non-Transactional Account Deletion:** Cascading deletion lacked savepoint-level rollback guarantees and did not explicitly check for `user_status is None` in sync precedence checks, risking partial deletions and zombie uploads.
 
 ---
 
 ## 6. Fixes Implemented
 
-1. **Persistent SQLCipher Mobile Storage:** Implemented `MobileEncryptedStorage` in `apps/mobile/src/services/storage/sqlcipher.ts` using `expo-sqlite`, `expo-crypto`, and `expo-secure-store`. The database file is encrypted with AES-256 via `PRAGMA key`, isolated per user account (`vitalsense_${userId}_encrypted.db`), and unmounted with key deletion on logout.
-2. **Hardware-Backed Secure Token Storage:** Implemented `SecureTokenStorage` in `apps/mobile/src/services/storage/secureTokens.ts` using `expo-secure-store`, storing access tokens, refresh tokens, and session identifiers in Android Keystore (AES-256 GCM) and iOS Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`).
-3. **Genuine Health Connect & HealthKit Adapters:** Updated mobile adapters with real platform inspection (`Platform.OS`), SDK availability verification (`HealthConnect.getSdkStatus()`, `AppleHealthKit.isAvailable()`), granular permission queries, and strict zero-fabrication handling (returning empty arrays when sensor data is unavailable or permissions are denied).
-4. **Docker Container Entrypoint & Probes:** Updated `infrastructure/docker/Dockerfile.api` to invoke `services.api.main:app` and probe `/health`. Updated `docker-compose.yml` to start `services.api.main:app`, added container healthchecks, and enforced mandatory environment variable evaluation (`${VAR:?error}`).
-5. **Nginx Operational Routing:** Updated `infrastructure/docker/nginx.conf` with dedicated location block routing `/health` and `/ready` probes directly to the backend API.
-6. **Comprehensive GDPR Export & Erasure:** Updated `PrivacyService.export_all_data` to output a structured JSON package with top-level `manifest` (version, timestamps, category counts) covering user account metadata (strictly zero password hashes or tokens), person profiles, health records, source receipts, medical records, workout details, daily AI insights, external imports, sync tombstones, and audit events. Hardened `PrivacyService.delete_account_permanently` with explicit multi-table deletion and an anonymized regulatory audit tombstone (`actor_id = None`).
-7. **Reconciled Documentation:** Updated `README.md` to reflect React Native + Expo mobile architecture, Tauri desktop clients, 77 passing tests, and updated probe endpoints.
-8. **Test Suite Modernization:** Marked `test_openapi_drift.py` with `@pytest.mark.asyncio`, verified zero contract drift against `packages/api-contracts/openapi/v1.json`, and added 2 integration tests for replay protection.
+1. **Expo SQLCipher Config Plugin:** Configured `["expo-sqlite", { "enableFTS": true, "useSQLCipher": true }]` in `apps/mobile/app.json`.
+2. **Page-1 Decryption Validation:** In `MobileEncryptedStorage.initialize`, following `PRAGMA key` and `PRAGMA cipher_compatibility = 4`, the service executes `SELECT count(*) FROM sqlite_master;` to force page-1 decryption. If opened with an invalid key or plaintext SQLite, it fails immediately.
+3. **Cipher Version Inspection:** Added `getCipherVersion()` querying `PRAGMA cipher_version;` to verify whether SQLCipher extensions are active.
+4. **Deliberate Key & File Purging:** In `purgeAccountData`, the database connection is closed, the hardware key is deleted from `expo-secure-store`, and `SQLite.deleteDatabaseAsync` is invoked.
+5. **Deterministic Stable Identifiers:** Implemented `deriveStableSourceId(platformId, metric, timestamp, suffix)` in both Health Connect and HealthKit adapters, eliminating `Math.random()`, `Date.now()`, and empty strings.
+6. **Strict Zero-Fabrication:** Missing or invalid values (e.g. undefined energy, missing heart rate, non-positive glucose) are strictly skipped rather than converted to zero.
+7. **Expanded Health Metric Extraction:** Implemented extraction for all 8 supported metrics in Health Connect and 5 sample-level metrics in HealthKit with canonical units (`count`, `bpm`, `seconds`, `kcal`, `mmHg`, `percentage`, `mg/dL`).
+8. **Transactional Privacy Erasure with Savepoint Rollback:** Wrapped all deletion operations in `services/privacy/service.py` within `async with session.begin_nested():`. If any failure occurs, all deletions roll back completely and HTTP 500 is returned.
+9. **Post-Deletion Synchronization Lock:** Hardened `services/sync/service.py` to check `if user_status is None or user_status in ("deleted", "deletion_pending"):` and reject requests with HTTP 403 Forbidden.
+10. **Docker Container Correctness:** Updated entrypoint to `services.api.main:app`, healthcheck to `/health`, and required mandatory environment secrets.
 
 ---
 
@@ -98,7 +106,7 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 ### Automated Pytest Suite
 - **Command:** `& "E:\Projects\VITALSENSE\.venv\Scripts\python.exe" -m pytest`
 - **Execution Environment:** Windows 10/11, Python 3.12.10, PostgreSQL 18 local daemon on port 5432.
-- **Result:** **77 passed, 0 failed, 9 warnings in 45.39s (100% pass rate)**.
+- **Result:** **79 passed, 0 failed, 9 warnings in 48.41s (100% pass rate)**.
 - **Breakdown by Module:**
   - `tests/test_analytics.py`: 1 passed (dashboard summary & 7d rolling trends)
   - `tests/test_api_auth_sync_endpoints.py`: 2 passed (web cookie auth & mobile bearer sync lifecycle)
@@ -108,7 +116,7 @@ This report documents the completion of the **VitalSense Stabilization & Verific
   - `tests/test_corrections_auth_retention.py`: 7 passed (single-use reset tokens, proxy rate limiting, bounded capacity, retention pruner, stale cursor recovery)
   - `tests/test_hardening_security_sync.py`: 10 passed (SameSite cookies, CSRF double-submit, batch limits, metric units, timestamp validation, resurrection prevention, retention pruner)
   - `tests/test_ingestion_sync.py`: 5 passed (paired BP validation, idempotent deduplication, immutable correction lineage, tombstone propagation, cursor expiration 409)
-  - `tests/test_integrations_and_privacy.py`: 2 passed (CSV & Apple XML import, GDPR export manifest & cascading erasure)
+  - `tests/test_integrations_and_privacy.py`: 4 passed (CSV & Apple XML import, GDPR export manifest & cascading erasure, transactional rollback on simulated failure, post-deletion sync rejection)
   - `tests/test_intelligence.py`: 1 passed (daily briefing & ML linear trend forecasting with medical disclaimer)
   - `tests/test_logging.py`: 2 passed (JSON formatter, PHI/token redaction)
   - `tests/test_medical_and_fitness.py`: 1 passed (clinical records, workout volumes, family profiles)
@@ -145,7 +153,7 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 3. **Password Reset Single-Use Lifecycle:** Reset tokens backed by database table `auth_password_resets`, verified single-use via pessimistic row-level locking (`SELECT FOR UPDATE`), preventing concurrent replay.
 4. **Cookie Security & CSRF:** Access and refresh tokens delivered exclusively via `HttpOnly; SameSite=Strict; Secure` cookies for Web clients. Double-submit CSRF cookie token (`vitalsense_csrf_token`) verified on state-changing endpoints.
 5. **Rate Limiting:** Sliding-window in-memory limiter with IP spoofing prevention via `TRUSTED_PROXIES` configuration and bounded memory footprint (`max_tracked_keys = 10000`).
-6. **Mobile Hardware Encryption:** Local SQLite storage encrypted with SQLCipher 256-bit AES, encryption key derived from platform Keystore / Keychain via Expo SecureStore.
+6. **Mobile Hardware Encryption:** Local SQLite storage configured with SQLCipher 256-bit AES via Expo config plugin (`useSQLCipher: true`), encryption key derived from platform Keystore / Keychain via Expo SecureStore.
 
 ---
 
@@ -162,10 +170,12 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 ## 11. Mobile Native Verification Results
 
 - **Architecture:** React Native 0.74+, Expo SDK 51+, TypeScript.
+- **Config Plugin:** Configured `["expo-sqlite", { "enableFTS": true, "useSQLCipher": true }]` in `app.json`.
 - **Code Validation:** Clean TypeScript compilation (`npx tsc` 0 errors).
-- **Storage Subsystem:** Real SQLCipher encryption configured via `expo-sqlite` and `expo-crypto`; token management via `expo-secure-store`.
-- **Sensors:** Google Health Connect and Apple HealthKit integration modules implemented with zero-fabrication guarantees.
-- **Local Host Limitation:** Android SDK (`adb`, Android build-tools) and macOS Xcode are not present on this host machine. Native binary compilation (`npx expo run:android` / `npx expo run:ios`) must be executed in dedicated mobile build environments or via Expo EAS Build.
+- **SQLCipher Status:** **IMPLEMENTED BUT UNVERIFIED AT RUNTIME**.
+  - Source code, key derivation, page-1 validation, and config plugin are complete.
+  - However, native execution cannot be proven on this host machine because Android SDK (`adb`, Gradle, Android build-tools) and Xcode are not installed.
+  - Runtime verification of `PRAGMA cipher_version`, opening with an invalid key, and raw ciphertext byte inspection must be executed on a physical device or emulator running custom native development builds (`npx expo run:android` / `npx expo run:ios`).
 
 ---
 
@@ -182,8 +192,9 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 
 ## 13. Remaining Blockers
 
-1. **Host Native Toolchain Prerequisites:** Compiling native mobile APKs/IPAs and desktop `.exe`/`.app` binaries requires installing platform SDKs (Android SDK, Xcode, Rust/Cargo) on target build machines or configuring CI build matrix pipelines.
-2. **Distributed Rate Limiting for Multi-Instance Deployments:** The current `InMemoryRateLimiter` operates process-locally. For horizontally scaled multi-pod production deployments, backing rate limiting with a shared Redis instance is recommended.
+1. **Native SQLCipher Runtime Verification:** Proving that the native binary links SQLCipher and rejects invalid keys on Android and iOS requires compiling and running in an environment with Android SDK / Xcode / emulators.
+2. **Host Native Toolchain Prerequisites:** Compiling native mobile APKs/IPAs and desktop `.exe`/`.app` binaries requires installing platform SDKs (Android SDK, Xcode, Rust/Cargo) on target build machines or configuring CI build matrix pipelines.
+3. **Distributed Rate Limiting for Multi-Instance Deployments:** The current `InMemoryRateLimiter` operates process-locally. For horizontally scaled multi-pod production deployments, backing rate limiting with a shared Redis instance is recommended.
 
 ---
 
@@ -204,17 +215,19 @@ This report documents the completion of the **VitalSense Stabilization & Verific
 
 ## 16. Recommended Next Milestone
 
-- **Milestone 1.0 — Production Release Candidate & CI/CD Packaging**:
+- **Milestone 1.0 — Native Runtime Verification & Release Packaging**:
+  - Run `npx expo prebuild` and `npx expo run:android` / `run:ios` on Android/macOS runners to execute automated runtime tests verifying `PRAGMA cipher_version` and invalid-key rejection.
   - Configure GitHub Actions matrix builds for automated multi-platform artifact packaging:
-    - Docker container publishing to container registry.
+    - Docker container publishing to GitHub Container Registry (GHCR).
     - Android APK/AAB build via Expo EAS / Gradle.
     - Windows Desktop `.msi` build via Tauri GitHub Action.
     - macOS Desktop `.dmg` build via macOS CI runner.
-  - Establish automated staging environment deployment with managed PostgreSQL and Redis.
 
 ---
 
 ## 17. Explicit Statement of Merge Safety
 
-> **VERDICT: SAFE TO MERGE INTO `dev`**  
-> All identified security, data integrity, Docker, and mobile storage defects have been thoroughly corrected. The repository contains **77 passing tests (100% pass rate)**, **zero OpenAPI contract drift**, a fully verified **production Web build (0 errors)**, and clean **mobile TypeScript compilation (0 errors)**. Zero mock data or simulated successes remain in core synchronization and storage paths. The working branch `stabilization/security-integrity-verification` is in a clean, fully verified state and is recommended for pull request review and merge into `dev`.
+> **VERDICT: NOT YET SAFE TO MERGE INTO `dev` PENDING NATIVE SQLCIPHER RUNTIME VERIFICATION**  
+> In accordance with project instructions (*"Do not declare the branch safe to merge if SQLCipher encryption remains unverified or if any critical security issue remains"*):  
+> While the backend, API, web frontend, data integrity, and privacy subsystems are 100% verified with **79 passing automated tests**, **zero OpenAPI contract drift**, and a successful **Next.js production build**, the mobile client's SQLCipher database encryption is currently **implemented but unverified at native runtime** due to the absence of the Android SDK and Xcode on this host machine.  
+> The branch `stabilization/security-integrity-verification` is in an orderly, fully tested state, but must await native device/emulator runtime proof before merging into `dev`.

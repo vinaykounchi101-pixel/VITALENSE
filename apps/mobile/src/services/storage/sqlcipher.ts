@@ -70,6 +70,9 @@ export class MobileEncryptedStorage {
     await this.db.execAsync(`PRAGMA cipher_compatibility = 4;`);
     await this.db.execAsync(`PRAGMA foreign_keys = ON;`);
 
+    // Verify key decryption against sqlite_master (forces key verification on page 1)
+    await this.db.execAsync(`SELECT count(*) FROM sqlite_master;`);
+
     // Initialize relational tables
     await this.db.execAsync(`
       CREATE TABLE IF NOT EXISTS local_health_records (
@@ -342,6 +345,21 @@ export class MobileEncryptedStorage {
   }
 
   /**
+   * Retrieves the SQLCipher version string via PRAGMA cipher_version.
+   * Returns null if standard SQLite is running without SQLCipher extensions.
+   */
+  async getCipherVersion(): Promise<string | null> {
+    const db = this.ensureMounted();
+    try {
+      const row = await db.getFirstAsync<{ cipher_version?: string }>(`PRAGMA cipher_version;`);
+      if (!row) return null;
+      return row.cipher_version || (row as any)["cipher_version"] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Closes database connection cleanly upon app backgrounding, logout, or account switch.
    */
   async close(): Promise<void> {
@@ -355,11 +373,20 @@ export class MobileEncryptedStorage {
 
   /**
    * Purges database file and keys upon account deletion or complete data wipe.
+   * Ensures key deletion and database-file deletion are handled deliberately and safely.
    */
   async purgeAccountData(userId: string): Promise<void> {
     await this.close();
-    await SecureStore.deleteItemAsync(`vitalsense_sqlcipher_key_${userId}`);
-    // Database file deletion handled by SQLite file manager
+    const keyAlias = `vitalsense_sqlcipher_key_${userId}`;
+    await SecureStore.deleteItemAsync(keyAlias);
+    const dbFileName = `vitalsense_${userId}_encrypted.db`;
+    try {
+      if (typeof (SQLite as any).deleteDatabaseAsync === "function") {
+        await (SQLite as any).deleteDatabaseAsync(dbFileName);
+      }
+    } catch (err) {
+      console.warn(`Database file deletion notice for ${dbFileName}:`, err);
+    }
   }
 }
 

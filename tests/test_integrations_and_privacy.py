@@ -8,12 +8,14 @@ import zipfile
 from datetime import date, timedelta
 
 import pytest
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.api.main import app
 from services.auth.service import AuthService
+from services.privacy.service import PrivacyService
 from services.sync.service import SyncService
 from vitalsense_common.database import get_engine
 from vitalsense_common.models.account import Person, UserAccount
@@ -235,3 +237,121 @@ async def test_privacy_export_and_cascading_deletion() -> None:
         tombstones = tombstone_check.scalars().all()
         assert len(tombstones) >= 1
         assert any(t.actor_id is None for t in tombstones)
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_account_deletion_transaction_rollback_on_failure(monkeypatch) -> None:
+    """Verify that an unexpected error during cascading deletion rolls back completely, preserving user data."""
+    engine = get_engine()
+    test_email = f"rollback_{uuid.uuid4().hex[:8]}@example.com"
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(email=test_email, password="SecurePassword123!"),
+        )
+        person_id = reg.person_id
+        user_id = reg.user_account_id
+        await session.commit()
+
+        # Ingest one health observation
+        batch = BatchSyncRequest(
+            device_id="device-rollback-test",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=4000.0,
+                    unit="count",
+                    measured_at=utc_now() - timedelta(minutes=10),
+                    device_record_id="step-rec-rb-1",
+                )
+            ],
+        )
+        await SyncService.synchronize(session, person_id, batch)
+        await session.commit()
+
+    # Simulate an error during execution of deletion (database error when deleting Person)
+    original_execute = AsyncSession.execute
+
+    async def mock_execute(self, statement, *args, **kwargs):
+        if hasattr(statement, "is_delete") and statement.is_delete:
+            entity = getattr(statement, "table", None)
+            if entity is not None and getattr(entity, "name", "") == "persons":
+                raise RuntimeError("Simulated database failure during person deletion")
+        return await original_execute(self, statement, *args, **kwargs)
+
+    monkeypatch.setattr(AsyncSession, "execute", mock_execute)
+
+    # Attempt deletion via PrivacyService
+    async with AsyncSession(engine) as session:
+        with pytest.raises(HTTPException) as exc_info:
+            await PrivacyService.delete_account_permanently(
+                session,
+                user_id,
+                "SecurePassword123!",
+            )
+        assert exc_info.value.status_code == 500
+        assert "rolled back" in str(exc_info.value.detail).lower()
+
+    # Remove monkeypatch
+    monkeypatch.undo()
+
+    # Verify that the transaction rolled back: UserAccount, Person, and HealthRecord still exist!
+    async with AsyncSession(engine) as session:
+        u_check = await session.execute(select(UserAccount).where(UserAccount.id == user_id))
+        assert u_check.scalar_one_or_none() is not None
+
+        p_check = await session.execute(select(Person).where(Person.user_account_id == user_id))
+        assert len(p_check.scalars().all()) == 1
+
+        hr_check = await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
+        assert len(hr_check.scalars().all()) == 1
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_pending_offline_uploads_cannot_resurrect_deleted_account() -> None:
+    """Verify that pending offline sync batches are strictly rejected after account deletion."""
+    engine = get_engine()
+    test_email = f"resurrect_prevention_{uuid.uuid4().hex[:8]}@example.com"
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(email=test_email, password="SecurePassword123!"),
+        )
+        person_id = reg.person_id
+        user_id = reg.user_account_id
+        await session.commit()
+
+        # Delete account permanently
+        await PrivacyService.delete_account_permanently(
+            session,
+            user_id,
+            "SecurePassword123!",
+        )
+        await session.commit()
+
+    # Now attempt an offline sync upload for the deleted person
+    async with AsyncSession(engine) as session:
+        offline_batch = BatchSyncRequest(
+            device_id="device-offline-zombie",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=8000.0,
+                    unit="count",
+                    measured_at=utc_now() - timedelta(minutes=5),
+                    device_record_id="zombie-step-1",
+                )
+            ],
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await SyncService.synchronize(session, person_id, offline_batch)
+
+        assert exc_info.value.status_code == 403
+        assert "disabled" in str(exc_info.value.detail).lower() or "deletion" in str(exc_info.value.detail).lower()
+
+        # Verify zero health records created
+        hr_check = await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
+        assert hr_check.fetchall() == []
+
