@@ -6,10 +6,10 @@
  * key protection (Android Keystore / iOS Keychain via expo-secure-store).
  */
 
-import * as SQLite from "expo-sqlite";
-import * as SecureStore from "expo-secure-store";
-import * as Crypto from "expo-crypto";
-import { HealthMetricRecord, SyncTombstoneRecord } from "../../types";
+import type * as SQLite from "expo-sqlite";
+import type * as SecureStore from "expo-secure-store";
+import type * as Crypto from "expo-crypto";
+import type { HealthMetricRecord, SyncTombstoneRecord } from "../../types/index.ts";
 
 export interface LocalRecordRow extends HealthMetricRecord {
   sync_status: "pending_upload" | "synced";
@@ -19,27 +19,64 @@ export interface LocalTombstoneRow extends SyncTombstoneRecord {
   sync_status: "pending_upload" | "synced";
 }
 
+export interface StorageDependencies {
+  sqlite: {
+    openDatabaseAsync: (name: string) => Promise<SQLite.SQLiteDatabase>;
+    deleteDatabaseAsync?: (name: string) => Promise<void>;
+  };
+  secureStore: {
+    getItemAsync: (key: string) => Promise<string | null>;
+    setItemAsync: (key: string, value: string, options?: any) => Promise<void>;
+    deleteItemAsync: (key: string) => Promise<void>;
+  };
+  crypto: {
+    getRandomBytesAsync: (length: number) => Promise<Uint8Array>;
+  };
+}
+
+// Lazy native module loader for React Native / Expo environment
+function getNativeModule<T>(moduleName: string): T {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require(moduleName);
+  } catch {
+    return {} as T;
+  }
+}
+
 export class MobileEncryptedStorage {
   private db: SQLite.SQLiteDatabase | null = null;
   private currentUserId: string | null = null;
   private isInitialized = false;
+  private deps: StorageDependencies;
+
+  constructor(dependencies?: StorageDependencies) {
+    this.deps = dependencies || {
+      sqlite: getNativeModule<any>("expo-sqlite"),
+      secureStore: getNativeModule<any>("expo-secure-store"),
+      crypto: getNativeModule<any>("expo-crypto"),
+    };
+  }
 
   /**
    * Retrieves or creates a cryptographically secure 256-bit AES master key
    * from platform hardware key storage (Android Keystore / iOS Keychain).
+   * Strictly isolated per user account.
    */
   private async getOrCreateEncryptionKey(userId: string): Promise<string> {
     const keyAlias = `vitalsense_sqlcipher_key_${userId}`;
-    let hexKey = await SecureStore.getItemAsync(keyAlias);
+    let hexKey = await this.deps.secureStore.getItemAsync(keyAlias);
 
     if (!hexKey) {
       // Generate 32 bytes (256 bits) of cryptographic randomness
-      const randomBytes = await Crypto.getRandomBytesAsync(32);
+      const randomBytes = await this.deps.crypto.getRandomBytesAsync(32);
       hexKey = Array.from(randomBytes)
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("");
 
-      await SecureStore.setItemAsync(keyAlias, hexKey);
+      await this.deps.secureStore.setItemAsync(keyAlias, hexKey, {
+        keychainAccessible: (this.deps.secureStore as any)?.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY || "AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY",
+      });
     }
 
     return hexKey;
@@ -47,6 +84,9 @@ export class MobileEncryptedStorage {
 
   /**
    * Initializes and mounts the encrypted SQLCipher database for the specified user account.
+   * Enforces strict fail-closed validation:
+   * 1. Requires valid PRAGMA cipher_version; fails closed if SQLCipher is missing or unencrypted SQLite is running.
+   * 2. Forces page-1 decryption check against sqlite_master; fails closed if key application fails.
    */
   async initialize(userId: string): Promise<void> {
     if (this.isInitialized && this.currentUserId === userId && this.db) {
@@ -62,53 +102,85 @@ export class MobileEncryptedStorage {
     const encryptionKey = await this.getOrCreateEncryptionKey(userId);
     const dbFileName = `vitalsense_${userId}_encrypted.db`;
 
-    // Open persistent database on local filesystem
-    this.db = await SQLite.openDatabaseAsync(dbFileName);
+    // Open database on local filesystem
+    const db = await this.deps.sqlite.openDatabaseAsync(dbFileName);
+    this.db = db;
 
-    // Apply SQLCipher encryption pragmas
-    await this.db.execAsync(`PRAGMA key = "x'${encryptionKey}'";`);
-    await this.db.execAsync(`PRAGMA cipher_compatibility = 4;`);
-    await this.db.execAsync(`PRAGMA foreign_keys = ON;`);
+    try {
+      // 1. Apply SQLCipher encryption key pragma
+      await db.execAsync(`PRAGMA key = "x'${encryptionKey}'";`);
+      await db.execAsync(`PRAGMA cipher_compatibility = 4;`);
+      await db.execAsync(`PRAGMA foreign_keys = ON;`);
 
-    // Verify key decryption against sqlite_master (forces key verification on page 1)
-    await this.db.execAsync(`SELECT count(*) FROM sqlite_master;`);
+      // 2. FAIL-CLOSED CHECK: Query PRAGMA cipher_version.
+      // If SQLCipher is unavailable (e.g. running unencrypted standard SQLite),
+      // PRAGMA cipher_version returns null/empty or throws.
+      // We MUST fail closed immediately to prevent writing unencrypted data.
+      let cipherVersion: string | null = null;
+      try {
+        const row = await db.getFirstAsync(`PRAGMA cipher_version;`);
+        cipherVersion = (row as any)?.cipher_version ?? (row as any)?.["cipher_version"] ?? null;
+      } catch {
+        cipherVersion = null;
+      }
 
-    // Initialize relational tables
-    await this.db.execAsync(`
-      CREATE TABLE IF NOT EXISTS local_health_records (
-        record_id TEXT PRIMARY KEY,
-        source_name TEXT NOT NULL,
-        source_record_id TEXT,
-        metric_name TEXT NOT NULL,
-        numeric_value REAL NOT NULL,
-        unit TEXT NOT NULL,
-        measured_at TEXT NOT NULL,
-        recorded_at TEXT NOT NULL,
-        metadata_json TEXT,
-        supersedes_record_id TEXT,
-        sync_status TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      );
+      if (!cipherVersion || typeof cipherVersion !== "string" || cipherVersion.trim().length === 0) {
+        throw new Error(
+          "SQLCipher initialization failed: SQLCipher native extension is not available or cipher_version is empty. Failing closed to prevent unencrypted plaintext storage."
+        );
+      }
 
-      CREATE INDEX IF NOT EXISTS idx_health_records_sync_status 
-      ON local_health_records (sync_status);
+      // 3. FAIL-CLOSED CHECK: Force page-1 decryption verification against sqlite_master.
+      // If the encryption key is invalid or failed to apply, reading page 1 throws.
+      try {
+        await db.execAsync(`SELECT count(*) FROM sqlite_master;`);
+      } catch (keyErr: any) {
+        throw new Error(
+          `SQLCipher key verification failed: unable to decrypt database with provided key. Failing closed. Details: ${keyErr?.message || "Decryption error"}`
+        );
+      }
 
-      CREATE TABLE IF NOT EXISTS local_sync_tombstones (
-        record_id TEXT PRIMARY KEY,
-        source_name TEXT NOT NULL,
-        source_record_id TEXT,
-        deleted_at TEXT NOT NULL,
-        sync_status TEXT NOT NULL
-      );
+      // 4. Initialize schema tables
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS local_health_records (
+          record_id TEXT PRIMARY KEY,
+          source_name TEXT NOT NULL,
+          source_record_id TEXT,
+          metric_name TEXT NOT NULL,
+          numeric_value REAL NOT NULL,
+          unit TEXT NOT NULL,
+          measured_at TEXT NOT NULL,
+          recorded_at TEXT NOT NULL,
+          metadata_json TEXT,
+          supersedes_record_id TEXT,
+          sync_status TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
 
-      CREATE TABLE IF NOT EXISTS sync_checkpoints (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      );
-    `);
+        CREATE INDEX IF NOT EXISTS idx_health_records_sync_status 
+        ON local_health_records (sync_status);
 
-    this.isInitialized = true;
+        CREATE TABLE IF NOT EXISTS local_sync_tombstones (
+          record_id TEXT PRIMARY KEY,
+          source_name TEXT NOT NULL,
+          source_record_id TEXT,
+          deleted_at TEXT NOT NULL,
+          sync_status TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS sync_checkpoints (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+      `);
+
+      this.isInitialized = true;
+    } catch (err) {
+      // Clean up on any failure: close DB, reset references, and fail closed
+      await this.close();
+      throw err;
+    }
   }
 
   private ensureMounted(): SQLite.SQLiteDatabase {
@@ -378,14 +450,14 @@ export class MobileEncryptedStorage {
   async purgeAccountData(userId: string): Promise<void> {
     await this.close();
     const keyAlias = `vitalsense_sqlcipher_key_${userId}`;
-    await SecureStore.deleteItemAsync(keyAlias);
+    await this.deps.secureStore.deleteItemAsync(keyAlias);
     const dbFileName = `vitalsense_${userId}_encrypted.db`;
     try {
-      if (typeof (SQLite as any).deleteDatabaseAsync === "function") {
-        await (SQLite as any).deleteDatabaseAsync(dbFileName);
+      if (typeof (this.deps.sqlite as any).deleteDatabaseAsync === "function") {
+        await (this.deps.sqlite as any).deleteDatabaseAsync(dbFileName);
       }
-    } catch (err) {
-      console.warn(`Database file deletion notice for ${dbFileName}:`, err);
+    } catch {
+      // Non-fatal if file does not exist or already removed
     }
   }
 }

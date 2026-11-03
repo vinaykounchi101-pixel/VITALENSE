@@ -173,3 +173,5 @@ android/.idea/
 scratch/
 tmp/
 temp/
+*.tsbuildinfo
+

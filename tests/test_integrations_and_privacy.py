@@ -10,7 +10,7 @@ from datetime import date, timedelta
 import pytest
 from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.api.main import app
@@ -25,7 +25,7 @@ from vitalsense_common.models.base import utc_now
 from vitalsense_common.models.extended import DailyInsight, MedicalRecord, WorkoutDetail
 from vitalsense_common.models.health_record import HealthRecord, SourceRecord
 from vitalsense_common.models.sync import SyncTombstone
-from vitalsense_common.schemas.auth import RegisterRequest
+from vitalsense_common.schemas.auth import RegisterRequest, RefreshTokenRequest, LoginRequest
 from vitalsense_common.schemas.sync import BatchSyncRequest, ObservationItem
 
 
@@ -355,3 +355,145 @@ async def test_pending_offline_uploads_cannot_resurrect_deleted_account() -> Non
         hr_check = await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
         assert hr_check.fetchall() == []
 
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_deletion_pending_account_cannot_refresh_or_sync() -> None:
+    """Verify that an account in deletion_pending status (grace period) cannot refresh sessions or sync data."""
+    engine = get_engine()
+    test_email = f"pending_del_{uuid.uuid4().hex[:8]}@example.com"
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(email=test_email, password="SecurePassword123!"),
+        )
+        person_id = reg.person_id
+        user_id = reg.user_account_id
+        refresh_token = reg.refresh_token
+        access_token = reg.access_token
+
+        # Set user account to deletion_pending (OD-07, ADR-04)
+        await session.execute(
+            update(UserAccount).where(UserAccount.id == user_id).values(status="deletion_pending")
+        )
+        await session.commit()
+
+    # 1. Verify token refresh is rejected with 403 Forbidden
+    async with AsyncSession(engine) as session:
+        with pytest.raises(HTTPException) as exc_info:
+            await AuthService.refresh_session(session, RefreshTokenRequest(refresh_token=refresh_token))
+        assert exc_info.value.status_code == 403
+        assert "pending deletion" in str(exc_info.value.detail).lower()
+
+    # 2. Verify login is rejected with 403 Forbidden
+    async with AsyncSession(engine) as session:
+        with pytest.raises(HTTPException) as exc_info:
+            await AuthService.authenticate_user(
+                session, LoginRequest(email=test_email, password="SecurePassword123!")
+            )
+        assert exc_info.value.status_code == 403
+
+    # 3. Verify sync upload is rejected with 403 Forbidden
+    async with AsyncSession(engine) as session:
+        batch = BatchSyncRequest(
+            device_id="device-pending-del",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=1000.0,
+                    unit="count",
+                    measured_at=utc_now(),
+                    device_record_id="pending-step-1",
+                )
+            ],
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await SyncService.synchronize(session, person_id, batch)
+        assert exc_info.value.status_code == 403
+        assert "deletion" in str(exc_info.value.detail).lower()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_account_deletion_outer_commit_and_no_premature_success() -> None:
+    """Verify that delete_account_permanently commits durably to PostgreSQL across all tables before returning."""
+    engine = get_engine()
+    test_email = f"durable_del_{uuid.uuid4().hex[:8]}@example.com"
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session,
+            RegisterRequest(email=test_email, password="SecurePassword123!"),
+        )
+        person_id = reg.person_id
+        user_id = reg.user_account_id
+        await session.commit()
+
+        # Ingest health record
+        batch = BatchSyncRequest(
+            device_id="device-durable-test",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=5000.0,
+                    unit="count",
+                    measured_at=utc_now() - timedelta(minutes=15),
+                    device_record_id="durable-step-1",
+                )
+            ],
+        )
+        await SyncService.synchronize(session, person_id, batch)
+
+        # Ingest daily insight
+        session.add(
+            DailyInsight(
+                person_id=person_id,
+                insight_date=date.today(),
+                headline="Durable Deletion Test",
+                summary_text="Checking commit durability.",
+            )
+        )
+        await session.commit()
+
+    # Call delete_account_permanently
+    async with AsyncSession(engine) as session:
+        del_resp = await PrivacyService.delete_account_permanently(
+            session,
+            user_id,
+            "SecurePassword123!",
+        )
+        assert del_resp.status == "deleted"
+        assert "irreversibly deleted" in del_resp.message
+
+    # Open completely fresh database session to prove physical commit to PostgreSQL
+    async with AsyncSession(engine) as session:
+        # UserAccount is gone
+        u_check = await session.execute(select(UserAccount).where(UserAccount.id == user_id))
+        assert u_check.scalar_one_or_none() is None
+
+        # Person is gone
+        p_check = await session.execute(select(Person).where(Person.user_account_id == user_id))
+        assert p_check.fetchall() == []
+
+        # HealthRecords are gone
+        hr_check = await session.execute(select(HealthRecord).where(HealthRecord.person_id == person_id))
+        assert hr_check.fetchall() == []
+
+        # DailyInsights are gone
+        di_check = await session.execute(select(DailyInsight).where(DailyInsight.person_id == person_id))
+        assert di_check.fetchall() == []
+
+        # User AuditEvents are gone
+        ae_check = await session.execute(select(AuditEvent).where(AuditEvent.actor_id == user_id))
+        assert ae_check.fetchall() == []
+
+        # Anonymized audit tombstone exists without user PHI or identifiers
+        tombstone_check = await session.execute(
+            select(AuditEvent).where(
+                AuditEvent.action == "account.purged_gdpr_art17",
+                AuditEvent.target_type == "user_account_tombstone",
+            )
+        )
+        tombstones = tombstone_check.scalars().all()
+        assert len(tombstones) >= 1
+        assert any(t.actor_id is None for t in tombstones)

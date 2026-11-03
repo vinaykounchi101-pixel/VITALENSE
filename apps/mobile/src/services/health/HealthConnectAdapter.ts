@@ -8,8 +8,9 @@
 
 import { Platform } from "react-native";
 import * as HealthConnect from "react-native-health-connect";
-import { HealthMetricRecord } from "../../types";
-import { HealthPlatformAdapter, PermissionStatus } from "./types";
+import type { HealthMetricRecord } from "../../types/index.ts";
+import { HealthPlatformAdapter, PermissionStatus } from "./types.ts";
+import { deriveStableSourceId } from "./sourceIdentifier.ts";
 
 const SUPPORTED_PERMISSIONS = [
   { accessType: "read" as const, recordType: "Steps" },
@@ -21,23 +22,6 @@ const SUPPORTED_PERMISSIONS = [
   { accessType: "read" as const, recordType: "OxygenSaturation" },
   { accessType: "read" as const, recordType: "BloodGlucose" },
 ];
-
-/**
- * Derives a stable, deterministic record identifier from platform metadata or observation attributes.
- * Prevents duplicate observations across repeated imports and eliminates random identifiers.
- */
-function deriveStableSourceId(
-  platformId: string | undefined | null,
-  metric: string,
-  timestamp: string,
-  suffix = ""
-): string {
-  if (platformId && platformId.trim().length > 0) {
-    return suffix ? `${platformId.trim()}_${suffix}` : platformId.trim();
-  }
-  // Deterministic identity strategy based on actual source observation
-  return `det_hc_${metric}_${timestamp}${suffix ? "_" + suffix : ""}`;
-}
 
 export class HealthConnectAdapter implements HealthPlatformAdapter {
   private isInitialized = false;
@@ -73,78 +57,95 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
   }
 
   /**
-   * Introspects currently granted Health Connect permissions without hardcoding.
+   * Inspects granular permissions directly from the Health Connect provider.
    */
   async checkPermissions(): Promise<PermissionStatus> {
-    const initialized = await this.ensureInitialized();
-    if (!initialized) {
+    const available = await this.isAvailable();
+    if (!available) {
       return {
         granted: false,
         canRequest: false,
         deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
+        state: "unavailable",
+      };
+    }
+
+    const initialized = await this.ensureInitialized();
+    if (!initialized) {
+      return {
+        granted: false,
+        canRequest: true,
+        deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
+        state: "undetermined",
       };
     }
 
     try {
-      const granted = await HealthConnect.getGrantedPermissions();
-      const grantedTypes = new Set(granted.map((g) => g.recordType));
-
-      const denied = SUPPORTED_PERMISSIONS.filter((p) => !grantedTypes.has(p.recordType)).map(
-        (p) => p.recordType
+      const grantedList = await HealthConnect.getGrantedPermissions();
+      const grantedTypes = new Set(
+        grantedList
+          .filter((p: any) => p.accessType === "read")
+          .map((p: any) => p.recordType)
       );
+
+      const denied: string[] = [];
+      for (const req of SUPPORTED_PERMISSIONS) {
+        if (!grantedTypes.has(req.recordType)) {
+          denied.push(req.recordType);
+        }
+      }
 
       return {
         granted: denied.length === 0,
         canRequest: true,
         deniedPermissions: denied,
+        state: denied.length === 0 ? "authorized" : "denied",
       };
     } catch {
       return {
         granted: false,
         canRequest: true,
         deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
+        state: "undetermined",
       };
     }
   }
 
   /**
-   * Requests runtime permissions from the user via the Health Connect OS dialog.
+   * Triggers the genuine Health Connect permission prompt sheet.
    */
   async requestPermissions(): Promise<PermissionStatus> {
+    const available = await this.isAvailable();
+    if (!available) {
+      return {
+        granted: false,
+        canRequest: false,
+        deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
+        state: "unavailable",
+      };
+    }
+
     const initialized = await this.ensureInitialized();
     if (!initialized) {
       return {
         granted: false,
         canRequest: false,
         deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
+        state: "undetermined",
       };
     }
 
     try {
-      const granted = await HealthConnect.requestPermission(SUPPORTED_PERMISSIONS);
-      const grantedTypes = new Set(granted.map((g) => g.recordType));
-
-      const denied = SUPPORTED_PERMISSIONS.filter((p) => !grantedTypes.has(p.recordType)).map(
-        (p) => p.recordType
-      );
-
-      return {
-        granted: denied.length === 0,
-        canRequest: false,
-        deniedPermissions: denied,
-      };
+      await HealthConnect.requestPermission(SUPPORTED_PERMISSIONS);
+      return this.checkPermissions();
     } catch {
-      return {
-        granted: false,
-        canRequest: false,
-        deniedPermissions: SUPPORTED_PERMISSIONS.map((p) => p.recordType),
-      };
+      return this.checkPermissions();
     }
   }
 
   /**
-   * Reads raw observations from Health Connect and normalizes them into VitalSense records.
-   * Zero-fabrication: Never fabricates measurements; missing values are omitted rather than defaulted to zero.
+   * Reads Health Connect records and normalizes them into VitalSense records.
+   * Zero-fabrication: Never fabricates measurements when no data exists or permissions are denied.
    */
   async readRecentRecords(startTime: Date, endTime: Date): Promise<HealthMetricRecord[]> {
     const initialized = await this.ensureInitialized();
@@ -166,9 +167,21 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("Steps")) {
       try {
         const response = await HealthConnect.readRecords("Steps", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           if (typeof record.count === "number" && record.count > 0) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "steps", record.startTime);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "steps",
+              startTime: record.startTime,
+              endTime: record.endTime,
+              numericValue: record.count,
+              unit: "count",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",
@@ -189,14 +202,20 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
       try {
         const response = await HealthConnect.readRecords("HeartRate", { timeRangeFilter: timeFilter });
         for (const record of response.records || []) {
-          for (const sample of record.samples || []) {
+          const samples = record.samples || [];
+          for (let sIdx = 0; sIdx < samples.length; sIdx++) {
+            const sample = samples[sIdx];
             if (typeof sample.beatsPerMinute === "number" && sample.beatsPerMinute > 0 && sample.time) {
-              const stableId = deriveStableSourceId(
-                record.metadata?.id,
-                "hr",
-                sample.time,
-                String(sample.beatsPerMinute)
-              );
+              const stableId = deriveStableSourceId({
+                platformPrefix: "hc",
+                platformId: record.metadata?.id,
+                metric: "heart_rate",
+                startTime: sample.time,
+                numericValue: sample.beatsPerMinute,
+                unit: "bpm",
+                discriminator: sample.time,
+                sampleIndex: sIdx,
+              });
               results.push({
                 record_id: `hc_rec_${stableId}`,
                 source_name: "google_health_connect",
@@ -217,11 +236,22 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("RestingHeartRate")) {
       try {
         const response = await (HealthConnect as any).readRecords("RestingHeartRate", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const bpm = record.beatsPerMinute;
           const time = record.time || record.startTime;
           if (typeof bpm === "number" && bpm > 0 && time) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "rhr", time);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "resting_heart_rate",
+              startTime: time,
+              numericValue: bpm,
+              unit: "bpm",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",
@@ -241,12 +271,24 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("SleepSession")) {
       try {
         const response = await HealthConnect.readRecords("SleepSession", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const startMs = new Date(record.startTime).getTime();
           const endMs = new Date(record.endTime).getTime();
           const durationSeconds = (endMs - startMs) / 1000;
           if (durationSeconds > 0) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "sleep", record.startTime);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "sleep_session",
+              startTime: record.startTime,
+              endTime: record.endTime,
+              numericValue: durationSeconds,
+              unit: "seconds",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",
@@ -268,11 +310,23 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
         const response = await HealthConnect.readRecords("TotalCaloriesBurned", {
           timeRangeFilter: timeFilter,
         });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const energyKcal = record.energy?.inKilocalories;
           // Zero-fabrication: skip record if energy is missing or not a positive number
           if (typeof energyKcal === "number" && energyKcal > 0) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "active_energy", record.startTime);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "active_energy",
+              startTime: record.startTime,
+              endTime: record.endTime,
+              numericValue: energyKcal,
+              unit: "kcal",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",
@@ -292,14 +346,25 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("BloodPressure")) {
       try {
         const response = await HealthConnect.readRecords("BloodPressure", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const sys = record.systolic?.inMillimetersOfMercury;
           const dia = record.diastolic?.inMillimetersOfMercury;
           const time = record.time || record.startTime;
 
           // Strict validation: both systolic and diastolic must be present and sys > dia
           if (typeof sys === "number" && typeof dia === "number" && sys > dia && time) {
-            const pairId = deriveStableSourceId(record.metadata?.id, "bp", time);
+            const pairId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "blood_pressure",
+              startTime: time,
+              numericValue: sys,
+              unit: "mmHg",
+              discriminator: `dia_${dia}`,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${pairId}_sys`,
               source_name: "google_health_connect",
@@ -331,12 +396,23 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("OxygenSaturation")) {
       try {
         const response = await (HealthConnect as any).readRecords("OxygenSaturation", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const percentage = record.percentage?.value ?? record.percentage;
           const time = record.time || record.startTime;
           // Canonical unit for oxygen_saturation in VitalSense is 'percentage'
           if (typeof percentage === "number" && percentage > 0 && time) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "spo2", time);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "blood_oxygen_saturation",
+              startTime: time,
+              numericValue: percentage,
+              unit: "percentage",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",
@@ -356,12 +432,23 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
     if (!deniedSet.has("BloodGlucose")) {
       try {
         const response = await (HealthConnect as any).readRecords("BloodGlucose", { timeRangeFilter: timeFilter });
-        for (const record of response.records || []) {
+        const records = response.records || [];
+        for (let idx = 0; idx < records.length; idx++) {
+          const record = records[idx];
           const glucoseVal = record.level?.inMilligramsPerDeciliter ?? record.level;
           const time = record.time || record.startTime;
           // Canonical unit is 'mg/dL'
           if (typeof glucoseVal === "number" && glucoseVal > 0 && time) {
-            const stableId = deriveStableSourceId(record.metadata?.id, "glucose", time);
+            const stableId = deriveStableSourceId({
+              platformPrefix: "hc",
+              platformId: record.metadata?.id,
+              metric: "blood_glucose",
+              startTime: time,
+              numericValue: glucoseVal,
+              unit: "mg/dL",
+              discriminator: record.metadata?.dataOrigin,
+              sampleIndex: idx,
+            });
             results.push({
               record_id: `hc_rec_${stableId}`,
               source_name: "google_health_connect",

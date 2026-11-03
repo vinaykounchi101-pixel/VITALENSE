@@ -403,9 +403,14 @@ class PrivacyService:
                 del_stmt = delete(UserAccount).where(UserAccount.id == user_account_id)
                 await session.execute(del_stmt)
                 await session.flush()
+
+            # Explicitly commit transaction so changes are durably persisted to PostgreSQL before returning success!
+            await session.commit()
         except HTTPException:
+            await session.rollback()
             raise
         except Exception as exc:
+            await session.rollback()
             logger.error("Account deletion transaction failed; rolled back all changes", exc_info=exc)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
