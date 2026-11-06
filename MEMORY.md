@@ -4,7 +4,7 @@
 **Last Updated:** 2026-11-06  
 **Active Specification:** [VitalSense_SRS_v1.1.1_Merged.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_SRS_v1.1.1_Merged.md)  
 **Product Baseline:** [VitalSense_PRD_v1.1.md](file:///e:/Projects/VITALSENSE/docs/VitalSense_PRD_v1.1.md)  
-**Branch:** `dev`  
+**Branch:** `dev` (HEAD: `7067ea1`)  
 **Remote:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---
@@ -85,3 +85,4 @@
    - Execute end-to-end synchronization tests between SQLite (SQLCipher) on client and PostgreSQL backend.
 3. **Desktop Clients (Tauri / Rust):**
    - Begin Phase 2 desktop app evaluation for Windows and macOS.
+

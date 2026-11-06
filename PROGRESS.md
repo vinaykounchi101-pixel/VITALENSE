@@ -183,7 +183,7 @@
 ## 2. Active Git State
 
 - **Default Branch:** `main` (baseline at commit `8411245`)
-- **Development Branch:** `dev` (active, updated with Frontend Phase 1 & 3D Anatomical Visualization)
+- **Development Branch:** `dev` (active at commit `7067ea1`, updated with Frontend Phase 1 & 3D Anatomical Visualization)
 - **Remote Origin:** `https://github.com/vinaykounchi101-pixel/VITALENSE.git`
 
 ---
