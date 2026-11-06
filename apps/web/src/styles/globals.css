@@ -2,26 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --border: 214 32% 91%;
+@layer base {
+  :root {
+    --color-canvas: #F4F1EC;
+    --color-surface: #FBF9F5;
+    --color-surface-elevated: #FFFFFF;
+    --color-surface-subtle: #EEEAE4;
+    --color-sidebar: #F0EDE7;
+    --color-text-primary: #252C32;
+    --color-text-secondary: #69727A;
+    --color-text-muted: #92999D;
+    --color-border: #E5E0D8;
+    --color-brand: #285F58;
+    --color-primary: #B9D6BE;
+    --color-primary-hover: #A8C9AF;
+    --color-primary-text: #203B35;
+    --color-teal-soft: #DCE9E1;
+    --color-coral: #E98F8E;
+    --color-coral-soft: #F8E4E1;
+    --color-mint: #A9C9B9;
+    --color-mint-soft: #E3EEE8;
+    --color-lavender: #B8A9E6;
+    --color-lavender-soft: #EEE9F8;
+    --color-blue: #8EB9D8;
+    --color-blue-soft: #E3EEF5;
+    --color-peach: #F0B58D;
+    --color-peach-soft: #F8EBDD;
+    --color-warning: #C18B4F;
+    --color-danger: #C76F70;
+    --color-positive: #548B73;
+  }
+
+  .dark {
+    --color-canvas: #202326;
+    --color-surface: #292D31;
+    --color-surface-elevated: #30353A;
+    --color-surface-subtle: #353A3F;
+    --color-sidebar: #24282C;
+    --color-text-primary: #F2F2EF;
+    --color-text-secondary: #B8BEC0;
+    --color-text-muted: #899195;
+    --color-border: #3B4145;
+    --color-brand: #A9CDBB;
+    --color-primary: #E9E0CF;
+    --color-primary-hover: #DCD0BB;
+    --color-primary-text: #303431;
+    --color-teal-soft: #344740;
+    --color-coral: #F19B9B;
+    --color-coral-soft: #493638;
+    --color-mint: #A8C9B8;
+    --color-mint-soft: #35453F;
+    --color-lavender: #B6A6E8;
+    --color-lavender-soft: #403B50;
+    --color-blue: #8EBDE0;
+    --color-blue-soft: #303F4B;
+    --color-peach: #E9B28F;
+    --color-peach-soft: #493D35;
+    --color-warning: #D4A66A;
+    --color-danger: #E18A8B;
+    --color-positive: #9AC5AC;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-text-primary);
+    font-family: Inter, Manrope, system-ui, -apple-system, sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
+  }
 }
 
-.dark {
-  --background: 222 47% 8%;
-  --foreground: 210 40% 98%;
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 98%;
-  --border: 217 33% 18%;
+/* Tabular numerals for health data */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  min-height: 100vh;
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
-
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}

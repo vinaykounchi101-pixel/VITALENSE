@@ -9,39 +9,72 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: "hsl(var(--card))",
-        "card-foreground": "hsl(var(--card-foreground))",
+        canvas: "var(--color-canvas)",
+        surface: {
+          DEFAULT: "var(--color-surface)",
+          elevated: "var(--color-surface-elevated)",
+          subtle: "var(--color-surface-subtle)",
+        },
+        sidebar: "var(--color-sidebar)",
+        border: "var(--color-border)",
+        text: {
+          primary: "var(--color-text-primary)",
+          secondary: "var(--color-text-secondary)",
+          muted: "var(--color-text-muted)",
+        },
+        brand: {
+          DEFAULT: "var(--color-brand)",
+          soft: "var(--color-teal-soft)",
+        },
         primary: {
-          DEFAULT: "#0284c7", // Sky 600
-          foreground: "#ffffff",
+          DEFAULT: "var(--color-primary)",
+          hover: "var(--color-primary-hover)",
+          text: "var(--color-primary-text)",
         },
-        secondary: {
-          DEFAULT: "#0f172a", // Slate 900
-          foreground: "#f8fafc",
+        coral: {
+          DEFAULT: "var(--color-coral)",
+          soft: "var(--color-coral-soft)",
         },
-        accent: {
-          DEFAULT: "#10b981", // Emerald 500
-          foreground: "#ffffff",
+        mint: {
+          DEFAULT: "var(--color-mint)",
+          soft: "var(--color-mint-soft)",
         },
-        muted: {
-          DEFAULT: "#64748b",
-          foreground: "#94a3b8",
+        lavender: {
+          DEFAULT: "var(--color-lavender)",
+          soft: "var(--color-lavender-soft)",
         },
-        destructive: {
-          DEFAULT: "#ef4444",
-          foreground: "#ffffff",
+        blue: {
+          DEFAULT: "var(--color-blue)",
+          soft: "var(--color-blue-soft)",
         },
-        border: "hsl(var(--border))",
+        peach: {
+          DEFAULT: "var(--color-peach)",
+          soft: "var(--color-peach-soft)",
+        },
+        warning: "var(--color-warning)",
+        danger: "var(--color-danger)",
+        positive: "var(--color-positive)",
       },
       borderRadius: {
-        lg: "0.75rem",
-        md: "0.5rem",
-        sm: "0.375rem",
+        xs: "7px",
+        sm: "11px",
+        md: "15px",
+        lg: "19px",
+        xl: "25px",
+        pill: "9999px",
+      },
+      fontFamily: {
+        sans: ["Inter", "Manrope", "system-ui", "sans-serif"],
+        display: ["Manrope", "Inter", "system-ui", "sans-serif"],
+      },
+      maxWidth: {
+        content: "1480px",
+      },
+      spacing: {
+        "sidebar-desktop": "142px",
+        "header-desktop": "60px",
       },
     },
   },
   plugins: [],
 };
-

@@ -10,7 +10,13 @@ import { Platform } from "react-native";
 import * as HealthConnect from "react-native-health-connect";
 import type { HealthMetricRecord } from "../../types/index.ts";
 import { HealthPlatformAdapter, PermissionStatus } from "./types.ts";
-import { deriveStableSourceId } from "./sourceIdentifier.ts";
+import { deriveStableSourceId, deriveLegacyFnv1aSourceId, StableIdParams } from "./sourceIdentifier.ts";
+
+function makeSourceIds(params: StableIdParams): { stableId: string; legacyId?: string } {
+  const stableId = deriveStableSourceId(params);
+  const legacyId = params.platformId ? undefined : deriveLegacyFnv1aSourceId(params);
+  return { stableId, legacyId };
+}
 
 const SUPPORTED_PERMISSIONS = [
   { accessType: "read" as const, recordType: "Steps" },
@@ -171,7 +177,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
         for (let idx = 0; idx < records.length; idx++) {
           const record = records[idx];
           if (typeof record.count === "number" && record.count > 0) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "steps",
@@ -191,6 +197,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "count",
               measured_at: record.startTime,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }
@@ -206,7 +213,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           for (let sIdx = 0; sIdx < samples.length; sIdx++) {
             const sample = samples[sIdx];
             if (typeof sample.beatsPerMinute === "number" && sample.beatsPerMinute > 0 && sample.time) {
-              const stableId = deriveStableSourceId({
+              const { stableId, legacyId } = makeSourceIds({
                 platformPrefix: "hc",
                 platformId: record.metadata?.id,
                 metric: "heart_rate",
@@ -225,6 +232,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
                 unit: "bpm",
                 measured_at: sample.time,
                 recorded_at: nowIso,
+                metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
               });
             }
           }
@@ -242,7 +250,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           const bpm = record.beatsPerMinute;
           const time = record.time || record.startTime;
           if (typeof bpm === "number" && bpm > 0 && time) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "resting_heart_rate",
@@ -261,6 +269,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "bpm",
               measured_at: time,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }
@@ -278,7 +287,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           const endMs = new Date(record.endTime).getTime();
           const durationSeconds = (endMs - startMs) / 1000;
           if (durationSeconds > 0) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "sleep_session",
@@ -298,6 +307,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "seconds",
               measured_at: record.startTime,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }
@@ -316,7 +326,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           const energyKcal = record.energy?.inKilocalories;
           // Zero-fabrication: skip record if energy is missing or not a positive number
           if (typeof energyKcal === "number" && energyKcal > 0) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "active_energy",
@@ -336,6 +346,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "kcal",
               measured_at: record.startTime,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }
@@ -355,7 +366,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
 
           // Strict validation: both systolic and diastolic must be present and sys > dia
           if (typeof sys === "number" && typeof dia === "number" && sys > dia && time) {
-            const pairId = deriveStableSourceId({
+            const { stableId: pairId, legacyId: legacyPairId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "blood_pressure",
@@ -374,7 +385,10 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "mmHg",
               measured_at: time,
               recorded_at: nowIso,
-              metadata_json: { paired_reading_id: pairId },
+              metadata_json: {
+                paired_reading_id: pairId,
+                ...(legacyPairId ? { legacy_source_record_id: `${legacyPairId}_sys` } : {}),
+              },
             });
             results.push({
               record_id: `hc_rec_${pairId}_dia`,
@@ -385,7 +399,10 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "mmHg",
               measured_at: time,
               recorded_at: nowIso,
-              metadata_json: { paired_reading_id: pairId },
+              metadata_json: {
+                paired_reading_id: pairId,
+                ...(legacyPairId ? { legacy_source_record_id: `${legacyPairId}_dia` } : {}),
+              },
             });
           }
         }
@@ -403,7 +420,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           const time = record.time || record.startTime;
           // Canonical unit for oxygen_saturation in VitalSense is 'percentage'
           if (typeof percentage === "number" && percentage > 0 && time) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "blood_oxygen_saturation",
@@ -422,6 +439,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "percentage",
               measured_at: time,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }
@@ -439,7 +457,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
           const time = record.time || record.startTime;
           // Canonical unit is 'mg/dL'
           if (typeof glucoseVal === "number" && glucoseVal > 0 && time) {
-            const stableId = deriveStableSourceId({
+            const { stableId, legacyId } = makeSourceIds({
               platformPrefix: "hc",
               platformId: record.metadata?.id,
               metric: "blood_glucose",
@@ -458,6 +476,7 @@ export class HealthConnectAdapter implements HealthPlatformAdapter {
               unit: "mg/dL",
               measured_at: time,
               recorded_at: nowIso,
+              metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
             });
           }
         }

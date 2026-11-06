@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { ShieldCheck, Download, Trash2, AlertTriangle, X, CheckCircle2, Loader2 } from "lucide-react";
+import { ShieldCheck, Download, Trash2, AlertTriangle, X, CheckCircle2 } from "lucide-react";
 import { api } from "../lib/api";
+import { Button } from "./ui/Button";
+import { Input } from "./ui/Input";
 
 interface PrivacyModalProps {
   isOpen: boolean;
@@ -46,7 +48,11 @@ export function PrivacyModal({ isOpen, onClose }: PrivacyModalProps) {
     e.preventDefault();
     if (!deletePassword) return;
 
-    if (!confirm("Are you ABSOLUTELY sure? This will permanently delete your account, credentials, and all health records across all profiles. This action CANNOT be undone.")) {
+    if (
+      !confirm(
+        "Are you ABSOLUTELY sure? This will permanently delete your account, credentials, and all health records across all profiles. This action CANNOT be undone."
+      )
+    ) {
       return;
     }
 
@@ -63,156 +69,129 @@ export function PrivacyModal({ isOpen, onClose }: PrivacyModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-100">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            <h2 className="text-lg font-semibold">Privacy, Data Portability & Rights</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="relative w-full max-w-lg rounded-2xl border border-border bg-surface-elevated p-6 shadow-xl text-text-primary">
+        <div className="flex items-center justify-between pb-4 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-pill bg-brand/10 text-brand flex items-center justify-center">
+              <ShieldCheck className="h-4 w-4" />
+            </div>
+            <h2 className="text-base font-semibold font-display">Privacy Rights & Controls</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 transition-colors"
+            className="rounded-pill p-1.5 text-text-muted hover:bg-surface-subtle hover:text-text-primary"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-800 mt-4">
+        {/* Tab switch */}
+        <div className="flex rounded-pill bg-surface-subtle p-1 border border-border my-4">
           <button
             onClick={() => setActiveTab("export")}
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-1 py-1.5 text-xs font-medium rounded-pill transition-all ${
               activeTab === "export"
-                ? "border-emerald-500 text-emerald-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "bg-surface-elevated text-brand font-semibold shadow-xs"
+                : "text-text-secondary hover:text-text-primary"
             }`}
           >
-            <Download className="h-4 w-4" />
-            <span>Export Data (GDPR Art. 20)</span>
+            Export Personal Data
           </button>
           <button
             onClick={() => setActiveTab("delete")}
-            className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`flex-1 py-1.5 text-xs font-medium rounded-pill transition-all ${
               activeTab === "delete"
-                ? "border-rose-500 text-rose-400"
-                : "border-transparent text-slate-400 hover:text-slate-200"
+                ? "bg-danger/10 text-danger font-semibold shadow-xs"
+                : "text-text-secondary hover:text-danger"
             }`}
           >
-            <Trash2 className="h-4 w-4" />
-            <span>Right to Erasure (Art. 17)</span>
+            Delete Account (Right to be Forgotten)
           </button>
         </div>
 
-        <div className="mt-4">
-          {activeTab === "export" ? (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-400 leading-relaxed">
-                VitalSense adheres strictly to privacy-by-design. You can download a complete, machine-readable JSON archive containing all your profiles, health observations, workout logs, medical records, and synchronization audit trails.
-              </p>
+        {activeTab === "export" ? (
+          <div className="space-y-4">
+            <p className="text-xs text-text-secondary leading-relaxed">
+              In accordance with GDPR Article 20 and CCPA, you may export all health observations, workout logs, medical documentation, and profile metadata in machine-readable JSON.
+            </p>
 
-              {exportSuccess && (
-                <div className="flex items-center space-x-2 rounded-xl bg-emerald-950/40 border border-emerald-800/60 p-4 text-sm text-emerald-300">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
-                  <span>Personal health archive generated and downloaded successfully.</span>
-                </div>
-              )}
-
-              <div className="rounded-xl bg-slate-800/50 p-4 border border-slate-700/50">
-                <h4 className="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Archive Contents</h4>
-                <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
-                  <li>Profile & family metadata</li>
-                  <li>Time-series health observations & metrics</li>
-                  <li>Workouts, sets, reps, and exercise volume</li>
-                  <li>Medical conditions and clinical lab records</li>
-                  <li>Sync history and source device identifiers</li>
-                </ul>
-              </div>
-
-              <div className="flex justify-end pt-3">
-                <button
-                  type="button"
-                  onClick={handleExport}
-                  disabled={isExporting}
-                  className="flex items-center space-x-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors shadow-lg shadow-emerald-600/30"
-                >
-                  {isExporting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Generating Archive...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4" />
-                      <span>Download JSON Export</span>
-                    </>
-                  )}
-                </button>
-              </div>
+            <div className="rounded-2xl border border-border bg-surface-subtle p-4">
+              <h4 className="text-xs font-semibold text-text-primary mb-1">
+                Data Archive Contents
+              </h4>
+              <ul className="text-[11px] text-text-muted space-y-1 list-disc list-inside">
+                <li>Biometric observations and source provenance</li>
+                <li>Device registration & sync histories</li>
+                <li>Logged resistance and aerobic sessions</li>
+                <li>Clinical documents and physician notes</li>
+              </ul>
             </div>
-          ) : (
-            <form onSubmit={handleDelete} className="space-y-4">
-              <div className="rounded-xl bg-rose-950/30 border border-rose-900/60 p-4 text-sm text-rose-300 flex items-start space-x-3">
-                <AlertTriangle className="h-5 w-5 text-rose-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-semibold">Irreversible Account & Data Erasure</p>
-                  <p className="text-xs text-rose-400 leading-relaxed">
-                    Executing erasure cascades permanently across all PostgreSQL tables. All credentials, active sessions, health records, medical labs, and backup references will be purged immediately.
-                  </p>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Confirm Current Password
-                </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter your password to verify authorization"
-                  value={deletePassword}
-                  onChange={(e) => setDeletePassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500"
-                />
+            {exportSuccess && (
+              <div className="p-3 rounded-xl bg-positive/10 border border-positive/30 text-xs text-positive flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>Archive downloaded to your local device.</span>
               </div>
+            )}
 
-              {deleteError && (
-                <div className="rounded-lg bg-rose-950/40 border border-rose-800/60 p-3 text-xs text-rose-300">
-                  {deleteError}
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 pt-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!deletePassword || isDeleting}
-                  className="flex items-center space-x-2 rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500 disabled:opacity-50 transition-colors shadow-lg shadow-rose-600/30"
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Purging All Data...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      <span>Permanently Erase Everything</span>
-                    </>
-                  )}
-                </button>
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+              <Button variant="subtle" size="sm" onClick={onClose}>
+                Close
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleExport}
+                isLoading={isExporting}
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+              >
+                Download Archive
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleDelete} className="space-y-4">
+            <div className="p-3.5 rounded-2xl bg-danger/10 border border-danger/30 text-xs text-danger space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>Permanent Erasure Warning</span>
               </div>
-            </form>
-          )}
-        </div>
+              <p className="text-[11px] leading-relaxed">
+                This will trigger an irrevocable cryptographic deletion cascade. All biometric records across all profiles will be purged.
+              </p>
+            </div>
+
+            <Input
+              label="Confirm Account Password"
+              type="password"
+              placeholder="••••••••••••"
+              required
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+            />
+
+            {deleteError && (
+              <p className="text-xs text-danger font-medium">{deleteError}</p>
+            )}
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
+              <Button variant="subtle" size="sm" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                type="submit"
+                isLoading={isDeleting}
+                leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+              >
+                Permanently Delete Account
+              </Button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
 }
-

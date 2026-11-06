@@ -1,16 +1,32 @@
 "use client";
 
 import React, { useState } from "react";
-import { Activity, Lock, Mail, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Activity,
+  Lock,
+  Mail,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { api } from "../../lib/api";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Card } from "../../components/ui/Card";
+import { useTheme } from "../../components/ThemeProvider";
 
 export default function AuthPage() {
+  const { resolvedTheme, toggleTheme } = useTheme();
   const [tab, setTab] = useState<"login" | "register" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [resetToken, setResetToken] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -20,7 +36,7 @@ export default function AuthPage() {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      await api.auth.login({ email, password, remember_me: rememberMe });
+      await api.auth.login({ email: email.trim(), password });
       window.location.href = "/";
     } catch (err: any) {
       setErrorMsg(err.message || "Invalid credentials.");
@@ -32,6 +48,13 @@ export default function AuthPage() {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail.includes("@") || !cleanEmail.includes(".")) {
+      setErrorMsg("Please enter a valid email address (e.g. user@example.com).");
+      setIsLoading(false);
+      return;
+    }
 
     if (password.length < 12) {
       setErrorMsg("Password must be at least 12 characters to meet VitalSense security requirements.");
@@ -46,7 +69,7 @@ export default function AuthPage() {
     }
 
     try {
-      await api.auth.register({ email, password });
+      await api.auth.register({ email: cleanEmail, password });
       window.location.href = "/";
     } catch (err: any) {
       setErrorMsg(err.message || "Registration failed.");
@@ -59,7 +82,7 @@ export default function AuthPage() {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      await api.auth.requestReset(email);
+      await api.auth.requestReset(email.trim());
       setSuccessMsg("If an account exists for this email, password reset instructions have been generated.");
       setIsLoading(false);
     } catch (err: any) {
@@ -91,31 +114,45 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-[#0B0F17]">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 sm:p-6 bg-canvas text-text-primary selection:bg-brand selection:text-white relative">
+      {/* Top right theme toggle */}
+      <div className="absolute top-4 right-4">
+        <button
+          onClick={toggleTheme}
+          className="h-9 px-3 rounded-pill border border-border bg-surface text-xs font-medium text-text-secondary hover:text-text-primary flex items-center gap-1.5 transition-colors"
+        >
+          {resolvedTheme === "dark" ? "Light Mode" : "Dark Mode"}
+        </button>
+      </div>
+
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 mb-4 shadow-inner">
-            <Activity className="h-8 w-8 text-indigo-400" />
+          <div className="inline-flex items-center justify-center h-14 w-14 rounded-pill bg-brand text-white mb-4 shadow-sm">
+            <Activity className="h-7 w-7" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">VitalSense</h1>
-          <p className="text-xs text-slate-400 mt-1">Privacy-First Personal Health Intelligence</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-text-primary font-display">
+            VitalSense
+          </h1>
+          <p className="text-xs sm:text-sm text-text-secondary mt-1 max-w-xs mx-auto">
+            Privacy-first personal health intelligence & biometric synchronization.
+          </p>
         </div>
 
-        {/* Auth Card */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-2xl backdrop-blur-md">
+        {/* Auth Card Container */}
+        <Card variant="elevated" className="p-6 sm:p-8">
           {/* Tabs */}
-          <div className="flex border-b border-slate-800 pb-3 mb-6">
+          <div className="flex rounded-pill bg-surface-subtle p-1 border border-border mb-6">
             <button
               onClick={() => {
                 setTab("login");
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
-              className={`flex-1 text-center pb-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-1.5 text-xs font-medium rounded-pill transition-all ${
                 tab === "login"
-                  ? "border-indigo-500 text-indigo-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "bg-surface-elevated text-brand font-semibold shadow-xs"
+                  : "text-text-secondary hover:text-text-primary"
               }`}
             >
               Sign In
@@ -126,248 +163,280 @@ export default function AuthPage() {
                 setErrorMsg(null);
                 setSuccessMsg(null);
               }}
-              className={`flex-1 text-center pb-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 py-1.5 text-xs font-medium rounded-pill transition-all ${
                 tab === "register"
-                  ? "border-indigo-500 text-indigo-400"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
+                  ? "bg-surface-elevated text-brand font-semibold shadow-xs"
+                  : "text-text-secondary hover:text-text-primary"
               }`}
             >
               Create Account
             </button>
+            <button
+              onClick={() => {
+                setTab("forgot");
+                setErrorMsg(null);
+                setSuccessMsg(null);
+              }}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-pill transition-all ${
+                tab === "forgot"
+                  ? "bg-surface-elevated text-brand font-semibold shadow-xs"
+                  : "text-text-secondary hover:text-text-primary"
+              }`}
+            >
+              Recovery
+            </button>
           </div>
 
+          {/* Feedback Banners */}
           {errorMsg && (
-            <div className="mb-4 flex items-center space-x-2 rounded-xl bg-rose-950/40 border border-rose-800/60 p-3 text-xs text-rose-300">
-              <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-              <span>{errorMsg}</span>
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl bg-danger/10 border border-danger/30 p-3.5 text-xs text-danger">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">{errorMsg}</div>
             </div>
           )}
 
           {successMsg && (
-            <div className="mb-4 flex items-center space-x-2 rounded-xl bg-emerald-950/40 border border-emerald-800/60 p-3 text-xs text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
-              <span>{successMsg}</span>
+            <div className="mb-5 flex items-start gap-2.5 rounded-xl bg-positive/10 border border-positive/30 p-3.5 text-xs text-positive">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">{successMsg}</div>
             </div>
           )}
 
+          {/* 1. Login Form */}
           {tab === "login" && (
             <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="user@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
+              <Input
+                label="Email Address"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                leftIcon={<Mail className="h-4 w-4" />}
+              />
 
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-medium text-slate-300">Password</label>
+              <Input
+                label="Password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="current-password"
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+                rightIcon={
                   <button
                     type="button"
-                    onClick={() => setTab("forgot")}
-                    className="text-xs text-indigo-400 hover:text-indigo-300"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 hover:text-text-primary focus:outline-none"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    Forgot password?
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
                   </button>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                }
+              />
+
+              <div className="flex items-center justify-between pt-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border-border text-brand focus:ring-brand/40"
+                  />
+                  <span className="text-xs text-text-secondary">Remember session</span>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setTab("forgot")}
+                  className="text-xs font-medium text-brand hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                isLoading={isLoading}
+                className="w-full mt-2"
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                Sign In
+              </Button>
+            </form>
+          )}
+
+          {/* 2. Registration Form */}
+          {tab === "register" && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <Input
+                label="Email Address"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="you@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                leftIcon={<Mail className="h-4 w-4" />}
+              />
+
+              <Input
+                label="Password (min 12 characters)"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="new-password"
+                placeholder="••••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+                rightIcon={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 hover:text-text-primary focus:outline-none"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                }
+              />
+
+              <Input
+                label="Confirm Password"
+                type={showPassword ? "text" : "password"}
+                required
+                autoComplete="new-password"
+                placeholder="••••••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                leftIcon={<Lock className="h-4 w-4" />}
+              />
+
+              <div className="p-3 rounded-xl bg-surface-subtle text-[11px] text-text-muted space-y-1">
+                <p className="font-medium text-text-secondary flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-brand" />
+                  Privacy-first architecture
+                </p>
+                <p>
+                  Passwords are protected with high-cost Argon2id hashing. Access tokens use HttpOnly secure cookies; raw tokens are never accessible to client scripts.
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                variant="primary"
+                size="md"
+                isLoading={isLoading}
+                className="w-full mt-2"
+                rightIcon={<ArrowRight className="h-4 w-4" />}
+              >
+                Create Account
+              </Button>
+            </form>
+          )}
+
+          {/* 3. Password Reset Flow */}
+          {tab === "forgot" && (
+            <div className="space-y-5">
+              {!resetToken ? (
+                <form onSubmit={handleForgotRequest} className="space-y-4">
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Enter your account email. If registered, we will generate single-use password reset instructions.
+                  </p>
+
+                  <Input
+                    label="Email Address"
+                    type="email"
+                    required
+                    placeholder="you@domain.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    leftIcon={<Mail className="h-4 w-4" />}
+                  />
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="md"
+                    isLoading={isLoading}
+                    className="w-full"
+                  >
+                    Generate Reset Instructions
+                  </Button>
+
+                  <div className="pt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setResetToken("manual_entry")}
+                      className="text-xs text-brand hover:underline font-medium"
+                    >
+                      Already have a reset token? Enter it here
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleResetConfirm} className="space-y-4">
+                  <p className="text-xs text-text-secondary leading-relaxed">
+                    Provide the single-use reset token and choose a new 12+ character password.
+                  </p>
+
+                  <Input
+                    label="Reset Token"
+                    type="text"
+                    required
+                    placeholder="Paste your reset token"
+                    value={resetToken === "manual_entry" ? "" : resetToken}
+                    onChange={(e) => setResetToken(e.target.value)}
+                  />
+
+                  <Input
+                    label="New Password (min 12 chars)"
                     type="password"
                     required
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    leftIcon={<Lock className="h-4 w-4" />}
                   />
-                </div>
-              </div>
 
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-xs text-slate-400">
-                  Remember this device for 30 days
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex items-center justify-center space-x-2 rounded-lg bg-indigo-600 py-2.5 px-4 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors shadow-lg shadow-indigo-600/30"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Signing in...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Sign In</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {tab === "register" && (
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="user@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Master Password <span className="text-slate-500">(12+ chars required)</span>
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Minimum 12 characters"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Confirm Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="password"
-                    required
-                    placeholder="Re-enter password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-slate-800/40 p-3 border border-slate-800 text-xs text-slate-400">
-                <div className="flex items-center space-x-1.5 text-indigo-400 font-medium mb-1">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  <span>Argon2id Memory Hardened</span>
-                </div>
-                <span>Passwords are never transmitted to third parties or logged in plain text.</span>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full flex items-center justify-center space-x-2 rounded-lg bg-indigo-600 py-2.5 px-4 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors shadow-lg shadow-indigo-600/30"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Creating Account...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Create Free Account</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          {tab === "forgot" && (
-            <div className="space-y-4">
-              <p className="text-xs text-slate-400">
-                Enter your email address to receive a secure, single-use password reset token.
-              </p>
-              <form onSubmit={handleForgotRequest} className="space-y-3">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="user@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800/90 pl-9 pr-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full rounded-lg bg-indigo-600 py-2 px-4 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-                >
-                  Send Reset Token
-                </button>
-              </form>
-
-              <div className="pt-4 border-t border-slate-800 space-y-3">
-                <p className="text-xs font-semibold text-slate-300">Have a reset token?</p>
-                <form onSubmit={handleResetConfirm} className="space-y-3">
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter reset token"
-                    value={resetToken}
-                    onChange={(e) => setResetToken(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
-                  />
-                  <input
-                    type="password"
-                    required
-                    placeholder="New password (12+ characters)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none"
-                  />
-                  <button
+                  <Button
                     type="submit"
-                    disabled={isLoading}
-                    className="w-full rounded-lg bg-emerald-600 py-2 px-4 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50 transition-colors"
+                    variant="primary"
+                    size="md"
+                    isLoading={isLoading}
+                    className="w-full"
                   >
                     Confirm New Password
-                  </button>
-                </form>
-              </div>
+                  </Button>
 
-              <button
-                type="button"
-                onClick={() => setTab("login")}
-                className="w-full text-center text-xs text-slate-400 hover:text-slate-200 pt-2"
-              >
-                Back to Sign In
-              </button>
+                  <div className="pt-2 text-center">
+                    <button
+                      type="button"
+                      onClick={() => setResetToken("")}
+                      className="text-xs text-text-muted hover:text-text-primary"
+                    >
+                      Back to request email
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
+        </Card>
+
+        {/* Security & Zero-Fabrication Footer */}
+        <div className="flex items-center justify-center gap-2 text-[11px] text-text-muted">
+          <ShieldCheck className="h-3.5 w-3.5 text-brand" />
+          <span>FIPS 180-4 SHA-256 Identity & Argon2id Encrypted Storage</span>
         </div>
       </div>
     </div>
   );
 }
-

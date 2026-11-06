@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, AlertCircle, CheckCircle2 } from "lucide-react";
-import { api } from "@/lib/api";
-import { offlineStore } from "@/lib/offlineStore";
+import { X, AlertCircle } from "lucide-react";
+import { api } from "../lib/api";
+import { offlineStore } from "../lib/offlineStore";
+import { Button } from "./ui/Button";
 
 interface Props {
   isOpen: boolean;
@@ -61,55 +62,79 @@ export function ManualEntryModal({ isOpen, onClose, onSuccess, onSaved }: Props)
             value: sysVal,
             unit: "mmHg",
             measured_at: measuredAt,
+            origin: "user_entered",
           },
           {
             metric_name: "blood_pressure_diastolic",
             value: diaVal,
             unit: "mmHg",
             measured_at: measuredAt,
+            origin: "user_entered",
           }
         );
       } else {
         const numVal = parseFloat(value);
         if (isNaN(numVal)) {
-          throw new Error("Please enter a valid numeric measurement.");
+          throw new Error("A valid numerical value is required.");
         }
+
         const cfg = METRIC_CONFIG[metricKey];
-        if (numVal < cfg.min || numVal > cfg.max) {
-          throw new Error(`Value must be between ${cfg.min} and ${cfg.max} ${cfg.unit}.`);
+        if (cfg) {
+          if (numVal < cfg.min || numVal > cfg.max) {
+            throw new Error(`Value for ${cfg.label} must be between ${cfg.min} and ${cfg.max} ${cfg.unit}.`);
+          }
         }
 
-        let canonicalValue = numVal;
-        let canonicalUnit = cfg.unit;
+        let finalValue = numVal;
+        let finalUnit = cfg.unit;
 
-        // Convert duration to canonical unit seconds
         if (metricKey === "sleep_session") {
-          canonicalValue = numVal * 3600.0;
-          canonicalUnit = "seconds";
+          finalValue = numVal * 3600;
+          finalUnit = "seconds";
         } else if (metricKey === "workout_session") {
-          canonicalValue = numVal * 60.0;
-          canonicalUnit = "seconds";
+          finalValue = numVal * 60;
+          finalUnit = "seconds";
         }
 
         observations.push({
           metric_name: metricKey,
-          value: canonicalValue,
-          unit: canonicalUnit,
+          value: finalValue,
+          unit: finalUnit,
           measured_at: measuredAt,
+          origin: "user_entered",
         });
       }
 
-      // Try online sync first
-      try {
-        await api.sync.syncBatch({
-          device_id: "web-client-manual",
-          observations,
-        });
-      } catch (err: any) {
-        // Fallback to offline store if network fails
-        for (const obs of observations) {
+      // Offline-first handling
+      const isOnline = navigator.onLine;
+      let syncSucceeded = false;
+
+      if (isOnline) {
+        try {
+          await api.sync.syncBatch({
+            device_id: "vitalsense_web_client",
+            observations,
+          });
+          syncSucceeded = true;
+        } catch {
+          syncSucceeded = false;
+        }
+      }
+
+      for (const obs of observations) {
+        const localId = `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        if (syncSucceeded) {
           await offlineStore.saveObservation({
-            id: `offline-${Date.now()}-${Math.random()}`,
+            id: localId,
+            metric_name: obs.metric_name,
+            value: obs.value,
+            unit: obs.unit,
+            measured_at: obs.measured_at,
+            sync_status: "synced",
+          });
+        } else {
+          await offlineStore.queueObservation({
+            id: localId,
             metric_name: obs.metric_name,
             value: obs.value,
             unit: obs.unit,
@@ -130,16 +155,19 @@ export function ManualEntryModal({ isOpen, onClose, onSuccess, onSaved }: Props)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 text-white shadow-2xl">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <h2 className="text-xl font-semibold">Log Health Observation</h2>
-          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white">
-            <X className="h-5 w-5" />
+      <div className="w-full max-w-md rounded-2xl border border-border bg-surface-elevated p-6 text-text-primary shadow-xl">
+        <div className="flex items-center justify-between pb-4 border-b border-border">
+          <h2 className="text-base font-semibold font-display">Log Health Observation</h2>
+          <button
+            onClick={onClose}
+            className="rounded-pill p-1.5 text-text-muted hover:bg-surface-subtle hover:text-text-primary"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {error && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-900/30 border border-red-800 p-3 text-sm text-red-300">
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-danger/10 border border-danger/30 p-3 text-xs text-danger">
             <AlertCircle className="h-4 w-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -147,11 +175,13 @@ export function ManualEntryModal({ isOpen, onClose, onSuccess, onSaved }: Props)
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-300">Metric Category</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Metric Category
+            </label>
             <select
               value={metricKey}
               onChange={(e) => setMetricKey(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-sky-500 focus:outline-none"
+              className="w-full h-[44px] px-3.5 rounded-pill border border-border bg-surface-subtle text-text-primary text-xs focus:border-brand focus:outline-none"
             >
               {Object.entries(METRIC_CONFIG).map(([k, cfg]) => (
                 <option key={k} value={k}>
@@ -164,31 +194,35 @@ export function ManualEntryModal({ isOpen, onClose, onSuccess, onSaved }: Props)
           {metricKey === "blood_pressure" ? (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-slate-300">Systolic (mmHg)</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Systolic (mmHg)
+                </label>
                 <input
                   type="number"
                   placeholder="e.g. 120"
                   value={systolic}
                   onChange={(e) => setSystolic(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-sky-500 focus:outline-none"
+                  className="w-full h-[44px] px-3.5 rounded-pill border border-border bg-surface-subtle text-text-primary text-xs focus:border-brand focus:outline-none"
                   required
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">Diastolic (mmHg)</label>
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Diastolic (mmHg)
+                </label>
                 <input
                   type="number"
                   placeholder="e.g. 80"
                   value={diastolic}
                   onChange={(e) => setDiastolic(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-sky-500 focus:outline-none"
+                  className="w-full h-[44px] px-3.5 rounded-pill border border-border bg-surface-subtle text-text-primary text-xs focus:border-brand focus:outline-none"
                   required
                 />
               </div>
             </div>
           ) : (
             <div>
-              <label className="block text-sm font-medium text-slate-300">
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
                 Measurement Value ({METRIC_CONFIG[metricKey]?.unit})
               </label>
               <input
@@ -197,38 +231,32 @@ export function ManualEntryModal({ isOpen, onClose, onSuccess, onSaved }: Props)
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="Enter numerical value"
-                className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-sky-500 focus:outline-none"
+                className="w-full h-[44px] px-3.5 rounded-pill border border-border bg-surface-subtle text-text-primary text-xs focus:border-brand focus:outline-none"
                 required
               />
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-300">Measurement Timestamp</label>
+            <label className="block text-xs font-medium text-text-secondary mb-1.5">
+              Measurement Timestamp
+            </label>
             <input
               type="datetime-local"
               value={timestamp}
               onChange={(e) => setTimestamp(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-sky-500 focus:outline-none"
+              className="w-full h-[44px] px-3.5 rounded-pill border border-border bg-surface-subtle text-text-primary text-xs focus:border-brand focus:outline-none"
               required
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white"
-            >
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
+            <Button variant="subtle" size="sm" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-medium text-white hover:bg-sky-500 disabled:opacity-50"
-            >
-              {submitting ? "Saving..." : "Save Record"}
-            </button>
+            </Button>
+            <Button variant="primary" size="sm" type="submit" isLoading={submitting}>
+              Save Observation
+            </Button>
           </div>
         </form>
       </div>

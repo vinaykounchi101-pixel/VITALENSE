@@ -10,7 +10,13 @@ import { Platform } from "react-native";
 import AppleHealthKit, { HealthKitPermissions } from "react-native-health";
 import type { HealthMetricRecord } from "../../types/index.ts";
 import { HealthPlatformAdapter, PermissionStatus } from "./types.ts";
-import { deriveStableSourceId } from "./sourceIdentifier.ts";
+import { deriveStableSourceId, deriveLegacyFnv1aSourceId, StableIdParams } from "./sourceIdentifier.ts";
+
+function makeSourceIds(params: StableIdParams): { stableId: string; legacyId?: string } {
+  const stableId = deriveStableSourceId(params);
+  const legacyId = params.platformId ? undefined : deriveLegacyFnv1aSourceId(params);
+  return { stableId, legacyId };
+}
 
 const PERMISSIONS: HealthKitPermissions = {
   permissions: {
@@ -233,7 +239,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                 const sample = samples[idx];
                 if (sample && typeof sample.value === "number" && sample.value > 0) {
                   const sampleDate = sample.startDate || sample.endDate || startTime.toISOString();
-                  const stableId = deriveStableSourceId({
+                  const { stableId, legacyId } = makeSourceIds({
                     platformPrefix: "hk",
                     platformId: sample.id || sample.uuid,
                     metric: "steps",
@@ -253,6 +259,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "count",
                     measured_at: sampleDate,
                     recorded_at: nowIso,
+                    metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                   });
                 }
               }
@@ -262,7 +269,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
         } else {
           AppleHealthKit.getStepCount(options, (err: any, results: any) => {
             if (!err && results && typeof results.value === "number" && results.value > 0) {
-              const stableId = deriveStableSourceId({
+              const { stableId, legacyId } = makeSourceIds({
                 platformPrefix: "hk",
                 metric: "steps",
                 startTime: startTime.toISOString(),
@@ -280,6 +287,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                 unit: "count",
                 measured_at: startTime.toISOString(),
                 recorded_at: nowIso,
+                metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
               });
             }
             resolve();
@@ -298,7 +306,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
             for (let idx = 0; idx < samples.length; idx++) {
               const sample = samples[idx];
               if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
-                const stableId = deriveStableSourceId({
+                const { stableId, legacyId } = makeSourceIds({
                   platformPrefix: "hk",
                   platformId: sample.id || sample.uuid,
                   metric: "heart_rate",
@@ -318,6 +326,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                   unit: "bpm",
                   measured_at: sample.startDate,
                   recorded_at: nowIso,
+                  metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                 });
               }
             }
@@ -342,7 +351,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                   const endMs = new Date(sample.endDate).getTime();
                   const durationSeconds = (endMs - startMs) / 1000;
                   if (durationSeconds > 0) {
-                    const stableId = deriveStableSourceId({
+                    const { stableId, legacyId } = makeSourceIds({
                       platformPrefix: "hk",
                       platformId: sample.id || sample.uuid,
                       metric: "sleep_session",
@@ -362,6 +371,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                       unit: "seconds",
                       measured_at: sample.startDate,
                       recorded_at: nowIso,
+                      metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                     });
                   }
                 }
@@ -386,7 +396,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
               for (let idx = 0; idx < samples.length; idx++) {
                 const sample = samples[idx];
                 if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
-                  const stableId = deriveStableSourceId({
+                  const { stableId, legacyId } = makeSourceIds({
                     platformPrefix: "hk",
                     platformId: sample.id || sample.uuid,
                     metric: "active_energy",
@@ -406,6 +416,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "kcal",
                     measured_at: sample.startDate,
                     recorded_at: nowIso,
+                    metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                   });
                 }
               }
@@ -434,7 +445,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
 
                 // Strict zero-fabrication: both systolic and diastolic must be valid with sys > dia
                 if (typeof sys === "number" && typeof dia === "number" && sys > dia && date) {
-                  const pairId = deriveStableSourceId({
+                  const { stableId: pairId, legacyId: legacyPairId } = makeSourceIds({
                     platformPrefix: "hk",
                     platformId: sample.id || sample.uuid,
                     metric: "blood_pressure",
@@ -454,7 +465,10 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "mmHg",
                     measured_at: date,
                     recorded_at: nowIso,
-                    metadata_json: { paired_reading_id: pairId },
+                    metadata_json: {
+                      paired_reading_id: pairId,
+                      ...(legacyPairId ? { legacy_source_record_id: `${legacyPairId}_sys` } : {}),
+                    },
                   });
                   records.push({
                     record_id: `hk_rec_${pairId}_dia`,
@@ -465,7 +479,10 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "mmHg",
                     measured_at: date,
                     recorded_at: nowIso,
-                    metadata_json: { paired_reading_id: pairId },
+                    metadata_json: {
+                      paired_reading_id: pairId,
+                      ...(legacyPairId ? { legacy_source_record_id: `${legacyPairId}_dia` } : {}),
+                    },
                   });
                 }
               }
@@ -491,7 +508,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                 if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
                   // HealthKit returns SpO2 as decimal fraction (0.0 - 1.0) or percentage (0 - 100)
                   const percentage = sample.value <= 1.0 ? sample.value * 100 : sample.value;
-                  const stableId = deriveStableSourceId({
+                  const { stableId, legacyId } = makeSourceIds({
                     platformPrefix: "hk",
                     platformId: sample.id || sample.uuid,
                     metric: "blood_oxygen_saturation",
@@ -510,6 +527,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "percentage",
                     measured_at: sample.startDate,
                     recorded_at: nowIso,
+                    metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                   });
                 }
               }
@@ -533,7 +551,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
               for (let idx = 0; idx < samples.length; idx++) {
                 const sample = samples[idx];
                 if (sample && typeof sample.value === "number" && sample.value > 0 && sample.startDate) {
-                  const stableId = deriveStableSourceId({
+                  const { stableId, legacyId } = makeSourceIds({
                     platformPrefix: "hk",
                     platformId: sample.id || sample.uuid,
                     metric: "blood_glucose",
@@ -552,6 +570,7 @@ export class HealthKitAdapter implements HealthPlatformAdapter {
                     unit: "mg/dL",
                     measured_at: sample.startDate,
                     recorded_at: nowIso,
+                    metadata_json: legacyId ? { legacy_source_record_id: legacyId } : undefined,
                   });
                 }
               }

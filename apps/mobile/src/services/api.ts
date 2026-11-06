@@ -151,10 +151,46 @@ class MobileApiClient {
 
   // Synchronization
   async syncBatch(payload: SyncBatchPayload): Promise<SyncBatchResponse> {
-    return this.request<SyncBatchResponse>("/api/v1/mobile/sync/batch", {
+    const body = {
+      device_id: payload.client_sync_token || "mobile_device",
+      observations: (payload.records || []).map((r) => ({
+        metric_name: r.metric_name,
+        value: r.numeric_value,
+        unit: r.unit,
+        measured_at: r.measured_at,
+        device_record_id: r.source_record_id || r.record_id,
+        metadata: r.metadata_json,
+        supersedes_record_id: r.supersedes_record_id,
+      })),
+      tombstones: (payload.deletions || []).map((d) => ({
+        target_record_id: d.record_id,
+        device_record_id: d.source_record_id,
+        deleted_at: d.deleted_at,
+      })),
+    };
+    const res = await this.request<any>("/api/v1/mobile/sync", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
+    return {
+      server_sync_token: res.next_sync_cursor || String(res.server_timestamp),
+      records_accepted: res.processed_count ?? 0,
+      records_suppressed: res.duplicate_count ?? 0,
+      deletions_applied: res.tombstones_processed ?? 0,
+      conflicts_detected: 0,
+      new_server_records: (res.server_observations || []).map((o: any) => ({
+        record_id: o.id || o.record_id,
+        source_name: o.source_name || "server",
+        source_record_id: o.device_record_id || o.source_record_id,
+        metric_name: o.metric_name,
+        numeric_value: o.value ?? o.numeric_value,
+        unit: o.unit,
+        measured_at: o.measured_at,
+        recorded_at: o.recorded_at || o.measured_at,
+        metadata_json: o.metadata,
+        supersedes_record_id: o.supersedes_record_id,
+      })),
+    };
   }
 
   // Analytics & Intelligence

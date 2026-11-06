@@ -239,13 +239,22 @@ class SyncService:
 
             # 2. Device record ID check: cannot resurrect a tombstoned device_record_id
             # Does not depend on joining deleted HealthRecord rows!
+            candidate_device_ids: List[str] = []
             if obs.device_record_id:
-                tomb_conditions = [SyncTombstone.device_record_id == obs.device_record_id]
-                try:
-                    parsed_uuid = uuid.UUID(obs.device_record_id)
-                    tomb_conditions.append(SyncTombstone.target_record_id == parsed_uuid)
-                except (ValueError, AttributeError):
-                    pass
+                candidate_device_ids.append(obs.device_record_id)
+            if obs.metadata and isinstance(obs.metadata, dict):
+                legacy_id = obs.metadata.get("legacy_source_record_id")
+                if legacy_id and isinstance(legacy_id, str) and legacy_id not in candidate_device_ids:
+                    candidate_device_ids.append(legacy_id)
+
+            if candidate_device_ids:
+                tomb_conditions = [SyncTombstone.device_record_id.in_(candidate_device_ids)]
+                for cand_id in candidate_device_ids:
+                    try:
+                        parsed_uuid = uuid.UUID(cand_id)
+                        tomb_conditions.append(SyncTombstone.target_record_id == parsed_uuid)
+                    except (ValueError, AttributeError):
+                        pass
 
                 tomb_query = select(SyncTombstone.id).where(
                     SyncTombstone.person_id == person_id,
@@ -273,15 +282,16 @@ class SyncService:
                 )
 
             # Permanent replay protection (even after 30-day tombstone pruning)
-            if obs.device_record_id:
+            # Detects both canonical SHA-256 and pre-migration legacy FNV-1a identifiers
+            if candidate_device_ids:
                 existing_dev_record_query = select(SourceRecord.id).where(
                     SourceRecord.person_id == person_id,
                     SourceRecord.source_name == source_name,
-                    SourceRecord.source_record_id == obs.device_record_id,
+                    SourceRecord.source_record_id.in_(candidate_device_ids),
                 )
                 dev_res = await session.execute(existing_dev_record_query)
                 if dev_res.scalar_one_or_none():
-                    # The record was already ingested in the past.
+                    # The record was already ingested in the past under canonical or legacy ID.
                     # Whether still active or deleted via a pruned tombstone,
                     # replay is suppressed as an idempotent duplicate.
                     duplicate_count += 1

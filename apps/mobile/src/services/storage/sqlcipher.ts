@@ -201,6 +201,23 @@ export class MobileEncryptedStorage {
     const metadataStr = record.metadata_json ? JSON.stringify(record.metadata_json) : null;
     const now = new Date().toISOString();
 
+    const legacyId = record.metadata_json?.legacy_source_record_id;
+    if (legacyId) {
+      const tombstone = await db.getFirstAsync<{ record_id: string }>(
+        "SELECT record_id FROM local_sync_tombstones WHERE source_record_id = ? OR record_id = ? LIMIT 1;",
+        legacyId,
+        `hc_rec_${legacyId}`
+      );
+      if (tombstone) {
+        return;
+      }
+      await db.runAsync(
+        "DELETE FROM local_health_records WHERE source_record_id = ? OR record_id = ?;",
+        legacyId,
+        `hc_rec_${legacyId}`
+      );
+    }
+
     await db.runAsync(
       `INSERT OR REPLACE INTO local_health_records (
         record_id, source_name, source_record_id, metric_name, numeric_value,
@@ -235,6 +252,23 @@ export class MobileEncryptedStorage {
     await db.execAsync("BEGIN TRANSACTION;");
     try {
       for (const record of records) {
+        const legacyId = record.metadata_json?.legacy_source_record_id;
+        if (legacyId) {
+          const tombstone = await db.getFirstAsync<{ record_id: string }>(
+            "SELECT record_id FROM local_sync_tombstones WHERE source_record_id = ? OR record_id = ? LIMIT 1;",
+            legacyId,
+            `hc_rec_${legacyId}`
+          );
+          if (tombstone) {
+            continue;
+          }
+          await db.runAsync(
+            "DELETE FROM local_health_records WHERE source_record_id = ? OR record_id = ?;",
+            legacyId,
+            `hc_rec_${legacyId}`
+          );
+        }
+
         const metadataStr = record.metadata_json ? JSON.stringify(record.metadata_json) : null;
         await db.runAsync(
           `INSERT OR REPLACE INTO local_health_records (

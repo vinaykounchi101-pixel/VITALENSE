@@ -25,7 +25,7 @@
 | **Password Hashing** | Argon2id (`argon2-cffi`) | `25.1.0` (m=65536, t=3, p=4) | High-cost GPU/ASIC-resistant password security (`OD-18`) |
 | **Token Lifecycle** | PyJWT | `2.15.1` (HS256) | 15-minute access tokens + 32-byte rotating refresh tokens |
 | **API Contract** | OpenAPI | `3.1.0` | Machine-readable API contracts in [packages/api-contracts/openapi/v1.json](file:///e:/Projects/VITALSENSE/packages/api-contracts/openapi/v1.json) |
-| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (75/75 tests passing) |
+| **Testing** | Pytest + pytest-asyncio | `8.3.3` / `0.24.0` | Unit, endpoint, and contract test suite (81/81 tests passing) |
 | **Frontend Framework** | Next.js + React | `14.2.35` / `18.3.1` | Production web application dashboard with IndexedDB offline store |
 | **Mobile Framework** | React Native + Expo | `0.74.5` / `51.0.0` | Unified cross-platform Android & iOS client architecture |
 | **Desktop Runtime** | Tauri / Rust | `1.6` | Lightweight native desktop clients for Windows and macOS |
@@ -121,6 +121,11 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 - **`004_tombstone_device_id`**:
   - Added `device_record_id` column to table `sync_tombstones` (`OD-14`, `FR-PRIV-004`).
   - Added composite index on `(person_id, device_record_id)` enabling O(1) resurrection checks without joining deleted `health_records`.
+- **`005_replay_protection_partial_index`**:
+  - Added PostgreSQL partial unique index `uq_source_records_device_id` on `source_records(person_id, source_name, source_record_id)` WHERE `source_record_id IS NOT NULL` (`DATA-005`, `OD-05`).
+  - Guarantees database-enforced concurrency-safe idempotency and replay protection for device and cloud import source IDs.
+- **`006_extended_domain`**:
+  - Created domain tables: `daily_insights` (AI intelligence briefings & recovery scores), `medical_records` (clinical documents & lab metadata), `workout_details` (granular exercise sets & muscle group analytics), and `external_imports` (ingestion job auditing).
 
 ---
 
@@ -158,7 +163,9 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
 
 ## 6. Verification & Automated Quality Gates
 
-- **Test Suite:** **60 tests passing** with 100% success rate:
+- **Test Suite:** **81 backend tests + 22 mobile unit tests passing** with 100% success rate:
+  - `test_permanent_replay_protection.py`: Database-enforced partial unique index verification, concurrent insertion conflict handling, savepoint isolation.
+  - `test_integrations_and_privacy.py`: External imports (CSV, Takeout, HealthKit XML), GDPR export portability, permanent account deletion with transactional rollback, and token refresh grace-period rejection.
   - `test_sync_integrity.py`: Decoupled tombstone resurrection prevention without joining deleted rows, device_record_id suppression, supersedes_record_id 409 rejection, tenant/person isolation, duplicate tombstone idempotency, in-batch deletion precedence, full-resync backend contract and draft preservation, account deletion override, concurrent password reset confirmation via `asyncio.gather`.
   - `test_corrections_auth_retention.py`: Database-backed single-use password reset lifecycle, replay rejection, multi-token revocation, WebAuthResponse token omission, rate limiter anti-spoofing and memory bounding, operational retention worker runner, stale device full-resync reconciliation.
   - `test_migration_002.py`: 10 metric seeding, schema additions, constraints.
@@ -171,3 +178,50 @@ PostgreSQL is the single canonical source of truth (`DATA-004`). All schema chan
   - `test_logging.py`: Structured JSON formatting and PHI redaction.
   - `test_openapi_drift.py`: Live FastAPI OpenAPI contract matches `packages/api-contracts/openapi/v1.json` with zero drift.
 - **CI Pipeline:** `.github/workflows/ci.yml` runs dependencies installation, package imports, Alembic migrations against PostgreSQL 16 container, pytest test suite, and OpenAPI drift verification.
+
+
+---
+
+## 7. Web Application Architecture & 3D Anatomical Visualization
+
+The VitalSense Web Client (`apps/web`) is engineered with **Next.js 14 (App Router)**, **React 18**, **TypeScript**, and **Tailwind CSS**, designed in strict alignment with the **VitalSense UI/UX Design Package v2**.
+
+### 7.1 Architecture & Route Hierarchy
+- **App Shell (`AppShell.tsx`):** Persistent responsive layout with collapsible navigation, mobile top-bar, theme provider toggle, and telemetry refresh synchronization.
+- **Application Routes (10 dedicated views):**
+  - `/` — Operational Health Dashboard & Hero Panel.
+  - `/body` — Interactive 3D Anatomical Body Explorer.
+  - `/activity` — Daily steps, caloric expenditure & structured workout history.
+  - `/sleep` — Circadian timing, duration & hypnogram stage analysis.
+  - `/trends` — Multi-metric longitudinal telemetry with 7-day rolling baselines.
+  - `/medical` — Clinical documents, laboratory reports & medical history.
+  - `/family` — Family health profiles (Phase 5 boundary marker).
+  - `/metrics` — Catalog of all 10 canonical Phase 1 metrics.
+  - `/profile` — User biometrics, baseline parameters & privacy controls.
+  - `/settings` — Platform configurations, connected devices & session revocation.
+  - `/auth` — Secure cookie-based authentication with CSRF token exchange.
+
+### 7.2 Zero-Fabrication Telemetry Binding
+- **Strict Data Contracts:** All visual components (cards, metric rings, charts, badges) bind exclusively to live or cached FastAPI responses.
+- **Empty States:** When telemetry data is unavailable or un-synced, views display deterministic empty states with explicit instructions to log observations, rather than fabricating default baselines or sample curves.
+- **Clinical Non-Diagnostic Disclaimers:** All AI-driven daily briefings and linear regression forecasts carry prominent statutory disclaimers conforming to `FR-AI-006`.
+
+### 7.3 Interactive 3D Anatomical Telemetry Visualization
+The 3D anatomical viewer replaces procedural mannequins with professionally authored anatomical models reflecting the authoritative visual target in `VitalSense-Health-App-Showcase.png`:
+- **Model Provenance & Licensing:**
+  - Full-body Musculature (`muscles.glb`, 5.62 MB, 177 meshes, 304k vertices).
+  - Anatomical Heart Complex (`heart.glb`, 2.52 MB, 11 meshes).
+  - Pulmonary Complex (`lungs.glb`, 3.90 MB, 20 meshes).
+  - **Source:** *BodyParts3D* by Database Center for Life Science (DBCLS).
+  - **License:** Creative Commons Attribution-ShareAlike 2.1 Japan (`CC BY-SA 2.1 JP`), fully permitting commercial usage, modification, and redistribution with attribution.
+- **Thoracic Dual-Organ Luminescence:**
+  - The internal heart is nested at `position: [0.015, 0.79, 0.08]` with a dual-beat systolic/diastolic pulse (`Math.pow(Math.sin(t * 3.8), 12) * 0.12`) and internal red point-light.
+  - The internal lungs surround the heart at `position: [0.0, 0.84, 0.03]` with volumetric respiratory expansion (`Math.sin(t * 1.5)`) and translucent cyan depth rendering.
+- **Translucent Medical Shaders:**
+  - Cool-blue translucent PBR material (`#4B7BB5` / `#6B99C4`, `opacity: 0.70`, `roughness: 0.28`, `metalness: 0.22`, `side: THREE.DoubleSide`, `depthWrite: true`).
+  - Studio 4-point directional lighting in `AnatomicalScene.tsx` features a high-intensity silhouette rim light (`#70B6F6`, intensity 2.4) producing an ethereal edge glow, accompanied by a frontal key light for muscular striation highlights.
+- **Raycasting & Zone Mapping:**
+  - Anterior muscle meshes and organs dynamically raycast to 5 physiological systems: `cardiac`, `respiratory`, `metabolic`, `musculoskeletal`, and `sleep`.
+  - 3D HTML marker pins provide persistent touch targets on desktop and mobile viewports.
+- **WebGL Fallback:**
+  - `AnatomicalCanvas.tsx` monitors WebGL context availability and user `prefers-reduced-motion` settings, gracefully toggling between the 3D scene and an interactive SVG anatomical schematic.

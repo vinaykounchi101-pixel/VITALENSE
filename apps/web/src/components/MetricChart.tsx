@@ -123,174 +123,173 @@ export function MetricChart({
 
   if (!chartData || historicalData.length === 0) {
     return (
-      <div className="flex h-56 w-full items-center justify-center rounded-xl border border-slate-800 bg-slate-900/50 p-6 text-center">
-        <p className="text-sm text-slate-500">
-          Insufficient historical observations to plot trends. Log at least two entries to activate charting.
+      <div className="flex h-56 w-full items-center justify-center rounded-2xl border border-dashed border-border bg-surface-subtle/40 p-6 text-center">
+        <p className="text-xs text-text-muted">
+          Insufficient historical observations to plot trends for {metricName.replace(/_/g, " ")}. Log at least two entries to activate charting.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="w-full rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <div className="flex items-center justify-between mb-3 text-xs text-slate-400">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-indigo-500" />
-            <span className="text-slate-300 font-medium">Recorded Observations</span>
+    <div className="w-full rounded-2xl border border-border bg-surface p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4 text-xs">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-pill bg-brand" />
+            <span className="text-text-primary font-medium">Recorded Observations</span>
           </div>
           {chartData.histAvgLine && (
-            <div className="flex items-center space-x-1.5">
-              <span className="h-0.5 w-4 bg-emerald-400 border-t border-dashed border-emerald-400" />
-              <span className="text-slate-400">7-Day Rolling Avg</span>
+            <div className="flex items-center gap-1.5">
+              <span className="h-0.5 w-4 bg-mint border-t border-dashed border-mint" />
+              <span className="text-text-secondary">7-Day Rolling Avg</span>
             </div>
           )}
           {forecastData.length > 0 && (
-            <div className="flex items-center space-x-1.5">
-              <span className="h-2 w-2 rounded-full bg-amber-400" />
-              <span className="text-amber-300 font-medium">95% Uncertainty Projection</span>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-pill bg-peach" />
+              <span className="text-text-primary font-medium">95% Uncertainty Projection</span>
             </div>
           )}
         </div>
-        <span className="text-slate-500 uppercase tracking-wider font-semibold">Unit: {unit}</span>
+        <span className="text-text-muted uppercase tracking-wider text-[11px] font-semibold">
+          Unit: {unit}
+        </span>
       </div>
 
       <div className="relative w-full overflow-x-auto">
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[500px]">
-          {/* Grid lines */}
+          {/* Subtle horizontal grid lines */}
           {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
-            const y = padding.top + (height - padding.top - padding.bottom) * pct;
-            const val = chartData.yMax - pct * (chartData.yMax - chartData.yMin);
+            const yVal = chartData.yMin + pct * (chartData.yMax - chartData.yMin);
+            const yPos = padding.top + (1 - pct) * (height - padding.top - padding.bottom);
             return (
               <g key={pct}>
                 <line
                   x1={padding.left}
-                  y1={y}
+                  y1={yPos}
                   x2={width - padding.right}
-                  y2={y}
-                  stroke="#1E293B"
+                  y2={yPos}
+                  stroke="currentColor"
+                  className="text-border"
                   strokeWidth="1"
                   strokeDasharray="3 3"
                 />
                 <text
                   x={padding.left - 8}
-                  y={y + 3}
+                  y={yPos + 4}
                   textAnchor="end"
-                  fill="#64748B"
-                  fontSize="10"
-                  fontFamily="sans-serif"
+                  className="text-[10px] fill-text-muted tabular-nums"
                 >
-                  {val.toFixed(val >= 100 ? 0 : 1)}
+                  {yVal.toFixed(0)}
                 </text>
               </g>
             );
           })}
 
-          {/* Baseline horizontal line */}
+          {/* Baseline Mean line */}
           {chartData.baselineY !== undefined && (
-            <line
-              x1={padding.left}
-              y1={chartData.baselineY}
-              x2={width - padding.right}
-              y2={chartData.baselineY}
-              stroke="#0EA5E9"
-              strokeWidth="1.5"
-              strokeDasharray="4 4"
+            <g>
+              <line
+                x1={padding.left}
+                y1={chartData.baselineY}
+                x2={width - padding.right}
+                y2={chartData.baselineY}
+                stroke="#69727A"
+                strokeWidth="1.5"
+                strokeDasharray="4 2"
+              />
+              <text
+                x={width - padding.right}
+                y={chartData.baselineY - 4}
+                textAnchor="end"
+                className="text-[10px] fill-text-muted"
+              >
+                Baseline ({baselineMean?.toFixed(1)})
+              </text>
+            </g>
+          )}
+
+          {/* Forecast confidence interval polygon */}
+          {chartData.confidencePath && (
+            <path
+              d={chartData.confidencePath}
+              className="fill-peach/20"
             />
           )}
 
-          {/* Forecast confidence interval shading */}
-          {chartData.confidencePath && (
-            <path d={chartData.confidencePath} fill="#F59E0B" fillOpacity="0.12" />
+          {/* Forecast predicted line */}
+          {forecastData.length > 0 && (
+            <path
+              d={chartData.fcastLine}
+              fill="none"
+              stroke="#F0B58D"
+              strokeWidth="2"
+              strokeDasharray="5 3"
+            />
           )}
 
-          {/* 7-day rolling average line */}
+          {/* 7-Day Rolling Average line */}
           {chartData.histAvgLine && (
             <path
               d={chartData.histAvgLine}
               fill="none"
-              stroke="#10B981"
+              stroke="#A9C9B9"
               strokeWidth="2"
-              strokeDasharray="4 4"
+              strokeDasharray="4 2"
             />
           )}
 
-          {/* Historical observation line */}
+          {/* Historical Observations Line */}
           <path
             d={chartData.histLine}
             fill="none"
-            stroke="#6366F1"
+            stroke="var(--color-brand)"
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
 
-          {/* Forecast line */}
-          {chartData.fcastPoints.length > 0 && (
-            <path
-              d={chartData.fcastLine}
-              fill="none"
-              stroke="#F59E0B"
-              strokeWidth="2"
-              strokeDasharray="5 5"
-              strokeLinecap="round"
-            />
-          )}
-
-          {/* Historical points */}
+          {/* Historical points circles */}
           {chartData.histPoints.map((p, i) => (
             <circle
               key={i}
               cx={p.x}
               cy={p.y}
-              r="4"
-              fill="#6366F1"
-              stroke="#0F172A"
+              r="3.5"
+              className="fill-surface stroke-brand"
               strokeWidth="2"
-              className="hover:r-6 cursor-pointer transition-all"
-            >
-              <title>{`${p.date}: ${p.value} ${unit}`}</title>
-            </circle>
+            />
           ))}
 
-          {/* Forecast points */}
+          {/* Forecast point dots */}
           {chartData.fcastPoints.map((p, i) => (
             <circle
-              key={i}
+              key={`fc-${i}`}
               cx={p.x}
               cy={p.y}
-              r="4"
-              fill="#F59E0B"
-              stroke="#0F172A"
+              r="3"
+              className="fill-surface stroke-peach"
               strokeWidth="2"
-              className="hover:r-6 cursor-pointer transition-all"
-            >
-              <title>{`${p.date} (Proj): ${p.value.toFixed(1)} [${p.lowerVal.toFixed(1)} - ${p.upperVal.toFixed(1)}]`}</title>
-            </circle>
+            />
           ))}
 
-          {/* X Axis dates */}
-          {chartData.histPoints.map((p, i) => {
-            // Render every 2nd or 3rd date to prevent overlap
-            if (i % Math.ceil(chartData.histPoints.length / 5) !== 0 && i !== chartData.histPoints.length - 1) {
-              return null;
-            }
-            return (
+          {/* X-axis date labels */}
+          {chartData.histPoints
+            .filter((_, i) => i === 0 || i === Math.floor(chartData.histPoints.length / 2) || i === chartData.histPoints.length - 1)
+            .map((p, i) => (
               <text
                 key={i}
                 x={p.x}
                 y={height - padding.bottom + 18}
                 textAnchor="middle"
-                fill="#64748B"
-                fontSize="10"
+                className="text-[10px] fill-text-muted tabular-nums"
               >
-                {p.date.slice(5)}
+                {p.date}
               </text>
-            );
-          })}
+            ))}
         </svg>
       </div>
     </div>
   );
 }
-

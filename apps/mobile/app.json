@@ -52,6 +52,9 @@
           "useSQLCipher": true
         }
       ]
-    ]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
   }
 }

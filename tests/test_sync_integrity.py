@@ -31,7 +31,7 @@ from typing import List, Optional, Tuple
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.auth.service import AuthService
@@ -714,3 +714,180 @@ async def test_concurrent_password_reset_confirmation() -> None:
                 LoginRequest(email=email, password=losing_password),
             )
         assert exc_lose.value.status_code == 401
+
+
+# =============================================================================
+# 4. SHA-256 Algorithm Migration & Backward Compatibility Integration Tests
+# =============================================================================
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sha256_migration_deduplication_against_legacy_fnv1a_records() -> None:
+    """Verify that observations previously ingested under legacy FNV-1a IDs are detected
+    and deduplicated when re-imported under canonical SHA-256 IDs, preventing historical duplicates."""
+    engine = get_engine()
+    now = datetime.now(timezone.utc)
+    email = f"migration_dedup_{uuid.uuid4().hex[:8]}@example.com"
+    measured_time = now - timedelta(hours=2)
+
+    legacy_fnv_id = "det_hc_heart_rate_2026-11-03T06_00_00Z_1a2b3c4d"
+    canonical_sha_id = "det_hc_heart_rate_2026-11-03T06_00_00Z_e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session, RegisterRequest(email=email, password="SecurePassword123!")
+        )
+        person_id = reg.person_id
+        await session.commit()
+
+        # Step 1: Pre-migration legacy client ingests observation under legacy FNV-1a ID
+        legacy_batch = BatchSyncRequest(
+            device_id="mobile_android_device",
+            observations=[
+                ObservationItem(
+                    metric_name="heart_rate",
+                    value=74.0,
+                    unit="bpm",
+                    measured_at=measured_time,
+                    device_record_id=legacy_fnv_id,
+                )
+            ],
+        )
+        res_legacy = await SyncService.synchronize(session, person_id, legacy_batch)
+        assert res_legacy.processed_count == 1
+        assert res_legacy.duplicate_count == 0
+        await session.commit()
+
+        # Verify exactly 1 HealthRecord exists
+        hr_count_1 = (
+            await session.execute(
+                select(func.count(HealthRecord.id)).where(HealthRecord.person_id == person_id)
+            )
+        ).scalar()
+        assert hr_count_1 == 1
+
+        # Step 2: Post-migration client upgrades to SHA-256 and re-imports same time window
+        # Attaches legacy_source_record_id in metadata
+        upgraded_batch = BatchSyncRequest(
+            device_id="mobile_android_device",
+            observations=[
+                ObservationItem(
+                    metric_name="heart_rate",
+                    value=74.0,
+                    unit="bpm",
+                    measured_at=measured_time,
+                    device_record_id=canonical_sha_id,
+                    metadata={"legacy_source_record_id": legacy_fnv_id},
+                )
+            ],
+        )
+        res_upgraded = await SyncService.synchronize(session, person_id, upgraded_batch)
+        # Duplicate must be detected and suppressed! Zero duplicate records created!
+        assert res_upgraded.processed_count == 0
+        assert res_upgraded.duplicate_count == 1
+        await session.commit()
+
+        # Verify NO duplicate HealthRecord was inserted
+        hr_count_2 = (
+            await session.execute(
+                select(func.count(HealthRecord.id)).where(HealthRecord.person_id == person_id)
+            )
+        ).scalar()
+        assert hr_count_2 == 1, "Duplicate historical HealthRecord must NOT be created during SHA-256 migration"
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sha256_migration_tombstone_resurrection_prevention() -> None:
+    """Verify that when a legacy observation was deleted (has a tombstone for legacy FNV-1a ID),
+    an upgraded client re-importing under canonical SHA-256 ID does NOT resurrect the deleted record."""
+    engine = get_engine()
+    now = datetime.now(timezone.utc)
+    email = f"migration_tomb_{uuid.uuid4().hex[:8]}@example.com"
+    measured_time = now - timedelta(hours=3)
+
+    legacy_fnv_id = "det_hc_steps_2026-11-03T06_00_00Z_9f8e7d6c"
+    canonical_sha_id = "det_hc_steps_2026-11-03T06_00_00Z_abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+
+    async with AsyncSession(engine) as session:
+        reg = await AuthService.register_user(
+            session, RegisterRequest(email=email, password="SecurePassword123!")
+        )
+        person_id = reg.person_id
+        await session.commit()
+
+        # Step 1: Ingest observation under legacy FNV-1a ID
+        legacy_batch = BatchSyncRequest(
+            device_id="device_legacy",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=500.0,
+                    unit="count",
+                    measured_at=measured_time,
+                    device_record_id=legacy_fnv_id,
+                )
+            ],
+        )
+        await SyncService.synchronize(session, person_id, legacy_batch)
+        await session.commit()
+
+        # Resolve target health record UUID
+        hr_id = (
+            await session.execute(
+                select(HealthRecord.id).where(HealthRecord.person_id == person_id)
+            )
+        ).scalar_one()
+
+        # Step 2: Delete observation (creates SyncTombstone with device_record_id = legacy_fnv_id)
+        tomb_batch = BatchSyncRequest(
+            device_id="device_legacy",
+            tombstones=[
+                TombstoneItem(
+                    target_record_id=hr_id,
+                    record_type="health_record",
+                    deleted_at=now,
+                    device_record_id=legacy_fnv_id,
+                )
+            ],
+        )
+        res_del = await SyncService.synchronize(session, person_id, tomb_batch)
+        assert res_del.tombstones_processed == 1
+        await session.commit()
+
+        # Verify health record is deleted
+        hr_check = (
+            await session.execute(
+                select(HealthRecord.id).where(HealthRecord.person_id == person_id)
+            )
+        ).scalar_one_or_none()
+        assert hr_check is None
+
+        # Step 3: Upgraded client re-imports under canonical SHA-256 ID with legacy ID metadata
+        upgraded_batch = BatchSyncRequest(
+            device_id="device_upgraded",
+            observations=[
+                ObservationItem(
+                    metric_name="steps",
+                    value=500.0,
+                    unit="count",
+                    measured_at=measured_time,
+                    device_record_id=canonical_sha_id,
+                    metadata={"legacy_source_record_id": legacy_fnv_id},
+                )
+            ],
+        )
+        res_upgraded = await SyncService.synchronize(session, person_id, upgraded_batch)
+        # Resurrection MUST be suppressed!
+        assert res_upgraded.processed_count == 0
+        assert res_upgraded.duplicate_count == 1
+        await session.commit()
+
+        # Verify health record was NOT resurrected
+        hr_resurrected = (
+            await session.execute(
+                select(HealthRecord.id).where(HealthRecord.person_id == person_id)
+            )
+        ).scalar_one_or_none()
+        assert hr_resurrected is None, "Deleted record must NOT be resurrected during SHA-256 migration"
+
